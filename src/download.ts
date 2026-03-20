@@ -1,14 +1,11 @@
 import path from "node:path";
 import { execa } from "execa";
 import fs from "fs-extra";
-import { resolveExecutable } from "./runtime.js";
+import { AUDIO_DIR, type IngestContext, resolveExecutable } from "./runtime.js";
 
-const AUDIO_DIR = path.resolve("data/audio");
-const AUDIO_FILE = path.resolve(AUDIO_DIR, "video.mp3");
-
-export async function downloadVideo(url: string): Promise<string> {
+export async function downloadVideo(context: IngestContext): Promise<string> {
   await fs.ensureDir(AUDIO_DIR);
-  await fs.remove(AUDIO_FILE);
+  await fs.remove(context.audioPath);
   const ytDlp = await resolveExecutable("yt-dlp");
 
   await execa(ytDlp, [
@@ -16,16 +13,14 @@ export async function downloadVideo(url: string): Promise<string> {
     "--audio-format",
     "mp3",
     "-o",
-    path.join("data", "audio", "video.%(ext)s"),
-    url,
+    path.join("data", "audio", `${context.id}.%(ext)s`),
+    context.sourceUrl,
   ]);
 
-  const exists = await fs.pathExists(AUDIO_FILE);
+  const exists = await fs.pathExists(context.audioPath);
   if (!exists) {
-    throw new Error(`Expected audio file was not created: ${AUDIO_FILE}`);
+    throw new Error(`Expected audio file was not created: ${context.audioPath}`);
   }
 
-  return AUDIO_FILE;
+  return context.audioPath;
 }
-
-export { AUDIO_DIR, AUDIO_FILE };

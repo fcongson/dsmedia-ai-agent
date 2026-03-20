@@ -2,6 +2,19 @@ import path from "node:path";
 import fs from "fs-extra";
 
 const LOCAL_VENV_BIN = path.resolve(".venv/bin");
+const AUDIO_DIR = path.resolve("data/audio");
+const TRANSCRIPTS_DIR = path.resolve("data/transcripts");
+const ANALYSIS_DIR = path.resolve("data/analysis");
+
+export interface IngestContext {
+  id: string;
+  sourceUrl: string;
+  audioPath: string;
+  transcriptPath: string;
+  analysisPath: string;
+  transcriptDir: string;
+  subtitleStem: string;
+}
 
 export async function resolveExecutable(command: string): Promise<string> {
   const pathValue = process.env.PATH ?? "";
@@ -17,3 +30,53 @@ export async function resolveExecutable(command: string): Promise<string> {
 
   throw new Error(`Required command is not available: ${command}`);
 }
+
+function extractVideoId(url: URL): string | null {
+  if (url.hostname === "youtu.be") {
+    const id = url.pathname.replace(/^\/+/u, "").split("/")[0];
+    return id || null;
+  }
+
+  if (["youtube.com", "www.youtube.com", "m.youtube.com"].includes(url.hostname)) {
+    if (url.pathname === "/watch") {
+      return url.searchParams.get("v");
+    }
+
+    if (url.pathname.startsWith("/shorts/") || url.pathname.startsWith("/embed/")) {
+      const [, , id] = url.pathname.split("/");
+      return id || null;
+    }
+  }
+
+  return null;
+}
+
+export function createIngestContext(sourceUrl: string): IngestContext {
+  let parsed: URL;
+  try {
+    parsed = new URL(sourceUrl);
+  } catch {
+    throw new Error("Provided value is not a valid URL.");
+  }
+
+  if (!["youtube.com", "www.youtube.com", "youtu.be", "m.youtube.com"].includes(parsed.hostname)) {
+    throw new Error("Provided URL must be a YouTube URL.");
+  }
+
+  const id = extractVideoId(parsed);
+  if (!id) {
+    throw new Error("Unable to determine YouTube video ID from URL.");
+  }
+
+  return {
+    id,
+    sourceUrl,
+    audioPath: path.resolve(AUDIO_DIR, `${id}.mp3`),
+    transcriptPath: path.resolve(TRANSCRIPTS_DIR, `${id}.txt`),
+    analysisPath: path.resolve(ANALYSIS_DIR, `${id}.json`),
+    transcriptDir: TRANSCRIPTS_DIR,
+    subtitleStem: path.join("data", "transcripts", id),
+  };
+}
+
+export { ANALYSIS_DIR, AUDIO_DIR, TRANSCRIPTS_DIR };

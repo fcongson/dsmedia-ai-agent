@@ -1,11 +1,7 @@
 import path from "node:path";
 import { execa } from "execa";
 import fs from "fs-extra";
-import { AUDIO_FILE } from "./download.js";
-import { resolveExecutable } from "./runtime.js";
-
-const TRANSCRIPTS_DIR = path.resolve("data/transcripts");
-const TRANSCRIPT_FILE = path.resolve(TRANSCRIPTS_DIR, "video.txt");
+import { TRANSCRIPTS_DIR, type IngestContext, resolveExecutable } from "./runtime.js";
 
 function stripMarkup(line: string): string {
   return line
@@ -54,11 +50,11 @@ function normalizeVttToPlainText(vtt: string): string {
   return result.join("\n").trim();
 }
 
-async function listSubtitleFiles(): Promise<string[]> {
-  const files = await fs.readdir(TRANSCRIPTS_DIR);
+async function listSubtitleFiles(context: IngestContext): Promise<string[]> {
+  const files = await fs.readdir(context.transcriptDir);
   return files
-    .filter((file) => /^video(?:\.[^.]+)?\.vtt$/u.test(file))
-    .map((file) => path.join(TRANSCRIPTS_DIR, file))
+    .filter((file) => file.startsWith(`${context.id}.`) && file.endsWith(".vtt"))
+    .map((file) => path.join(context.transcriptDir, file))
     .sort();
 }
 
@@ -73,12 +69,12 @@ function subtitleUnavailable(output: string): boolean {
   );
 }
 
-async function tryDownloadSubtitles(url: string): Promise<string | null> {
+async function tryDownloadSubtitles(context: IngestContext): Promise<string | null> {
   await fs.ensureDir(TRANSCRIPTS_DIR);
-  await fs.remove(TRANSCRIPT_FILE);
+  await fs.remove(context.transcriptPath);
   const ytDlp = await resolveExecutable("yt-dlp");
 
-  const existingFiles = await listSubtitleFiles();
+  const existingFiles = await listSubtitleFiles(context);
   await Promise.all(existingFiles.map((file) => fs.remove(file)));
 
   const result = await execa(
@@ -88,13 +84,13 @@ async function tryDownloadSubtitles(url: string): Promise<string | null> {
       "--write-sub",
       "--write-auto-sub",
       "-o",
-      path.join("data", "transcripts", "video.%(ext)s"),
-      url,
+      `${context.subtitleStem}.%(ext)s`,
+      context.sourceUrl,
     ],
     { reject: false },
   );
 
-  const subtitleFiles = await listSubtitleFiles();
+  const subtitleFiles = await listSubtitleFiles(context);
   if (subtitleFiles.length === 0) {
     if (result.exitCode !== 0 && !subtitleUnavailable(`${result.stdout}\n${result.stderr}`)) {
       throw new Error(result.stderr || result.stdout || "Subtitle download failed.");
@@ -108,26 +104,26 @@ async function tryDownloadSubtitles(url: string): Promise<string | null> {
     return null;
   }
 
-  await fs.writeFile(TRANSCRIPT_FILE, `${transcript}\n`, "utf8");
+  await fs.writeFile(context.transcriptPath, `${transcript}\n`, "utf8");
   return transcript;
 }
 
-async function transcribeWithWhisper(): Promise<string> {
-  const audioExists = await fs.pathExists(AUDIO_FILE);
+async function transcribeWithWhisper(context: IngestContext): Promise<string> {
+  const audioExists = await fs.pathExists(context.audioPath);
   if (!audioExists) {
-    throw new Error(`Audio file missing for Whisper fallback: ${AUDIO_FILE}`);
+    throw new Error(`Audio file missing for Whisper fallback: ${context.audioPath}`);
   }
   const whisper = await resolveExecutable("whisper");
 
-  await fs.remove(TRANSCRIPT_FILE);
-  await execa(whisper, [AUDIO_FILE, "--model", "base", "--output_dir", path.join("data", "transcripts")]);
+  await fs.remove(context.transcriptPath);
+  await execa(whisper, [context.audioPath, "--model", "base", "--output_dir", path.join("data", "transcripts")]);
 
-  const exists = await fs.pathExists(TRANSCRIPT_FILE);
+  const exists = await fs.pathExists(context.transcriptPath);
   if (!exists) {
-    throw new Error(`Expected transcript file was not created: ${TRANSCRIPT_FILE}`);
+    throw new Error(`Expected transcript file was not created: ${context.transcriptPath}`);
   }
 
-  const transcript = (await fs.readFile(TRANSCRIPT_FILE, "utf8")).trim();
+  const transcript = (await fs.readFile(context.transcriptPath, "utf8")).trim();
   if (!transcript) {
     throw new Error("Transcript file is empty after Whisper transcription.");
   }
@@ -135,13 +131,11 @@ async function transcribeWithWhisper(): Promise<string> {
   return transcript;
 }
 
-export async function transcribeAudio(url: string): Promise<string> {
-  const subtitleTranscript = await tryDownloadSubtitles(url);
+export async function transcribeAudio(context: IngestContext): Promise<string> {
+  const subtitleTranscript = await tryDownloadSubtitles(context);
   if (subtitleTranscript) {
     return subtitleTranscript;
   }
 
-  return transcribeWithWhisper();
+  return transcribeWithWhisper(context);
 }
-
-export { TRANSCRIPTS_DIR, TRANSCRIPT_FILE };

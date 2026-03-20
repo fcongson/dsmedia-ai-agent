@@ -1,0 +1,241 @@
+hey friends design systems are essential
+for creating beautiful professional and
+consistent websites in this lesson i'll
+show you the basics of design systems
+and how they can help you as a new web
+designer i'm going to break down what
+design systems are why they are so
+important and popular with web designers
+right now and how they can help you as a
+new web designer
+[Music]
+knowing which fonts colors and styling
+will work best with your content and
+brand is essential when you standardize
+these things it's called a design system
+design systems help you maintain
+consistency so you're not making random
+color and font choices at every turn
+they're also beneficial when working
+with more than one designer because
+everyone will be following the same
+rubric and set of design instructions if
+you will headings are always this font
+size buttons are this color corners are
+rounded at 32 pixels and so on
+design systems are critical when working
+with a team or building a large project
+they help maintain consistency across
+all design elements which can be really
+helpful when multiple people are working
+on the same project design systems can
+also help speed up the process by
+providing a set of guidelines that
+everyone can follow that said do you
+always need a design system for every
+single project
+not every project needs a design system
+in fact for small projects or one-off
+landing pages they can be more of a
+hindrance than help
+in these cases you can probably skip the
+design system and go with your gut
+instead
+all right let's talk about how to create
+your first design system step one audit
+your design
+before creating a design system it's
+helpful to audit your current design or
+wireframe this means taking a look at
+all of the user interface elements and
+layouts structure that you're using and
+noting what works well and what doesn't
+you might also want to consider what
+fonts sizes colors and design styles
+work best for your brand this will give
+you a good starting point for building
+your design system now when you're
+auditing your design make sure to pay
+attention to the following font types
+and sizes
+color palette layout grid system design
+style is it minimalistic modern
+brutalist so on and so forth step two
+create a consistent design
+language a design language is made up of
+a few key pieces typography sizing color
+and graphics when you standardize these
+key pieces designing your websites and
+applications will be so much easier more
+professional and consistent
+especially as your project grows in size
+over time
+typography is a huge part of design and
+when it comes to the web there are a few
+key things to keep in mind
+one of the best things you can do for
+your web design is to keep your font
+choices
+simple
+when you have too many fonts it becomes
+difficult to create a cohesive design
+and the text becomes harder to read plus
+too many fonts can also slow down your
+website's loading time simplifying your
+font choices will make it easier to
+design around a single typeface and make
+your website look way more professional
+so when starting a new project try to
+stick with two or three different fonts
+at most this will help you create a more
+polished design overall
+so where do you find great fonts
+well there are a few great places you
+can find free fonts my go-to is google
+fonts they have a huge library of fonts
+to choose from and they're all free to
+use another great option is font
+squirrel they have a good selection of
+fonts and offer some commercial licenses
+as well now if you want to keep things
+really simple i recommend using system
+fonts system fonts are a collection of
+fonts that come pre-installed on most
+computers they're typically simple easy
+to read and make a great option for your
+websites ariel helvetica times new roman
+tahoma these are the most common system
+fonts they load quickly you don't have
+to think about font choices people know
+these fonts and expect them to be decent
+it's a great choice check out
+systemfontstack.com for more information
+on using system fonts in your websites
+now here's a fun one the inter typeface
+inter is a carefully designed typeface
+developed by rasmus anderson and it's
+probably my favorite sans serif font for
+user interfaces it's available for free
+on google fonts or from
+rsms.me slash enter
+if you have an adobe creative cloud
+subscription you can also use the adobe
+typekit library to add even more fonts
+to your collection not available in free
+font libraries the typekit library has a
+vast selection of professional fonts and
+they're all licensed for commercial use
+a word of caution just because you have
+many font choices to choose from that
+does not mean it's a good idea to choose
+many too many font choices can be
+overwhelming and they can make your
+design look cluttered it's always best
+to stick with a few well chosen fonts
+and use them consistently throughout
+your design
+when it comes to sizing and spacing
+consistency is key this means using the
+same font size line height margin
+padding all throughout your design this
+will keep a more polished look and make
+your design easier to experience you
+might also want to consider using a grid
+system to help with sizing and spacing
+a well-established color palette is an
+integral part of any design system it
+ensures that all elements of your design
+are cohesive and look great plus it can
+help make your website or application
+easier to use by providing a visual
+reference for users when choosing colors
+for your design try to stick to a few
+fundamental principles use a limited
+number of colors three to five use
+different shades and tints of the same
+color to create variety stick to a light
+dark contrast for easy readability and
+use complementary colors for maximum
+impact
+now if you need help choosing colors for
+your design there's a few great tools
+out there to help you get started adobe
+color creative cloud is a web-based free
+web-based tool that allows you to create
+custom color palettes you can choose
+from pre-selected ones various color
+models and you can also create your own
+colormind is a free online tool that
+generates color palettes based on an
+image all you need to do is enter an
+image url and colormind will generate a
+palette of colors based on the image
+coolors is a great free online tool as
+well it's my go-to
+it provides resources of what makes good
+color palettes you can choose trending
+popular and appealing color palettes
+they have a whole bunch that you can
+kind of choose from and it's a great way
+to see what kind of colors you might
+want to play with choose primary colors
+base color palettes off of that color
+lots of fun stuff you could do with
+coolers another great way to get started
+with picking a color palette is to draw
+color palette inspiration from your
+favorite brands check out their website
+or social media pages and look at their
+color palette try to mimic their colors
+in your design or use use them as a
+starting point for creating your own
+color palette
+graphics and icons are a great way to
+add visual interest to your design but
+when using them be sure to keep things
+really simple too many graphics can make
+your design look cluttered and when
+selecting graphics and icons try to
+stick with a limited number of styles
+and shapes this will help you maintain a
+cohesive design throughout your website
+or application step 3 create a design
+library in figma a design library is a
+great way to keep your design elements
+colors and typography organized and
+consistent when creating a library be
+sure to include all of the following
+fonts colors shapes graphics and icons
+and anything else you might need this
+will make designing your websites and
+applications way easier using a cohesive
+style that you can draw from figma makes
+creating a design library very easy
+allowing you to create global styles
+components typography sizing and more so
+that your designs are more consistent
+another cool thing about figma is when
+you update or change something in your
+global design library it will reflect
+everywhere else in your design step 4
+document as you go as you work on your
+design system it's important to document
+and update any changes you make this
+will help keep your project consistent
+even as your design and brand changes
+over time
+okay so we've looked at the essentials
+of creating a design system for web
+designers we've discussed the importance
+of consistency and how to create a
+design language using typography sizing
+colors and graphics and we also looked
+at how to build a design library and why
+it's essential to document changes as
+you go by no means was this a
+comprehensive deep dive into design
+systems but this should be enough to get
+you started and to help you improve your
+design skills and workflow along the way
+i'll see in the next one
+you

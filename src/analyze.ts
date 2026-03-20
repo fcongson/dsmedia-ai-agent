@@ -1,15 +1,19 @@
 import path from "node:path";
 import fs from "fs-extra";
 import fetch from "node-fetch";
+import { ANALYSIS_DIR, type IngestContext } from "./runtime.js";
 
-const ANALYSIS_DIR = path.resolve("data/analysis");
-const ANALYSIS_FILE = path.resolve(ANALYSIS_DIR, "video.json");
 const OLLAMA_URL = "http://localhost:11434";
 
-export interface AnalysisResult {
+interface ModelAnalysis {
   summary: string;
   tags: string[];
   key_takeaways: string[];
+}
+
+export interface AnalysisResult extends ModelAnalysis {
+  id: string;
+  source_url: string;
 }
 
 function buildPrompt(transcript: string): string {
@@ -31,7 +35,7 @@ Transcript:
 ${transcript}`;
 }
 
-function isAnalysisResult(value: unknown): value is AnalysisResult {
+function isModelAnalysis(value: unknown): value is ModelAnalysis {
   if (!value || typeof value !== "object") {
     return false;
   }
@@ -80,7 +84,7 @@ function extractJsonBlock(raw: string): string {
   return trimmed;
 }
 
-async function generateAnalysis(model: string, transcript: string): Promise<AnalysisResult> {
+async function generateAnalysis(model: string, transcript: string): Promise<ModelAnalysis> {
   const response = await fetchJson<{ response: string }>(`${OLLAMA_URL}/api/generate`, {
     method: "POST",
     headers: {
@@ -94,7 +98,7 @@ async function generateAnalysis(model: string, transcript: string): Promise<Anal
   });
 
   const parsed = JSON.parse(extractJsonBlock(response.response)) as unknown;
-  if (!isAnalysisResult(parsed)) {
+  if (!isModelAnalysis(parsed)) {
     throw new Error("Generated JSON does not match required schema.");
   }
 
@@ -105,7 +109,7 @@ async function generateAnalysis(model: string, transcript: string): Promise<Anal
   };
 }
 
-export async function analyzeTranscript(transcript: string): Promise<AnalysisResult> {
+export async function analyzeTranscript(context: IngestContext, transcript: string): Promise<AnalysisResult> {
   await fs.ensureDir(ANALYSIS_DIR);
   await ensureOllamaReachable();
 
@@ -114,8 +118,13 @@ export async function analyzeTranscript(transcript: string): Promise<AnalysisRes
 
   for (let attempt = 1; attempt <= 3; attempt += 1) {
     try {
-      const analysis = await generateAnalysis(model, transcript);
-      await fs.writeJson(ANALYSIS_FILE, analysis, { spaces: 2 });
+      const modelAnalysis = await generateAnalysis(model, transcript);
+      const analysis: AnalysisResult = {
+        id: context.id,
+        source_url: context.sourceUrl,
+        ...modelAnalysis,
+      };
+      await fs.writeJson(context.analysisPath, analysis, { spaces: 2 });
       return analysis;
     } catch (error) {
       lastError = error as Error;
@@ -124,5 +133,3 @@ export async function analyzeTranscript(transcript: string): Promise<AnalysisRes
 
   throw new Error(`Failed to generate valid JSON after 3 attempts: ${lastError?.message ?? "Unknown error"}`);
 }
-
-export { ANALYSIS_DIR, ANALYSIS_FILE };
