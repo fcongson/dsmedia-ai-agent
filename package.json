@@ -1,0 +1,20 @@
+{
+  "name": "dsmedia-ai-agent",
+  "version": "1.0.0",
+  "private": true,
+  "type": "module",
+  "scripts": {
+    "ingest": "tsx src/ingest.ts"
+  },
+  "dependencies": {
+    "execa": "^9.6.0",
+    "fs-extra": "^11.3.2",
+    "node-fetch": "^3.3.2"
+  },
+  "devDependencies": {
+    "@types/fs-extra": "^11.0.4",
+    "@types/node": "^24.5.2",
+    "tsx": "^4.20.6",
+    "typescript": "^5.9.2"
+  }
+}
