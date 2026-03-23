@@ -1,6 +1,6 @@
 # DS.media AI Agent
 
-A Node.js + TypeScript pipeline that ingests a YouTube video and produces structured JSON analysis with stable, source-linked artifact names. Can be run as a CLI, an MCP server for use with Claude Desktop, or wired into Open WebUI via a proxy.
+A Node.js + TypeScript pipeline that ingests YouTube videos and produces structured JSON analysis with stable, source-linked artifact names. Supports single videos and batch ingest from playlists, channels, or URL lists. Can be run as a CLI, an MCP server for use with Claude Desktop, or wired into Open WebUI via a proxy.
 
 ## What It Does
 
@@ -92,6 +92,7 @@ The server communicates over stdio and exposes these tools:
 - `fetch_subtitles` — attempt to download YouTube subtitles or auto-captions
 - `transcribe_audio` — transcribe the audio using Whisper (fallback when subtitles are unavailable)
 - `analyse_transcript` — send the transcript to Ollama and return structured JSON analysis
+- `expand_playlist` — expand a playlist or channel URL into a flat list of individual video URLs and titles
 
 #### Testing with MCP Inspector
 
@@ -151,6 +152,33 @@ The full local stack looks like this:
 ```
 Open WebUI  ←→  mcpo (port 8000)  ←→  src/server.ts (stdio)  ←→  yt-dlp / Whisper / Ollama
 ```
+
+## Batch Ingest
+
+The MCP server supports batch processing via the `expand_playlist` tool. Pass a playlist URL, channel URL, or a plain text file of URLs — the agent will expand the list, skip already-processed videos, and work through each one sequentially with automatic retries.
+
+### URL list file format
+
+Create a plain text file with one URL per line. Blank lines and lines starting with `#` are ignored. Playlist and channel URLs are automatically expanded into individual video URLs.
+
+```
+# My batch list
+https://www.youtube.com/watch?v=abc123
+https://www.youtube.com/watch?v=def456
+https://www.youtube.com/playlist?list=PLxxxxxxxx
+```
+
+### How the agent handles the batch
+
+Before starting, the agent classifies every video into one of three states:
+
+- **DONE** — analysis already exists, skip
+- **PARTIAL** — audio or transcript exists but analysis does not, resume from the right step
+- **NEW** — no artifacts exist, run the full pipeline
+
+It then processes videos sequentially, retrying each failed step up to 2 times before moving on. A summary of successes and failures is presented at the end.
+
+See `skill/SKILL-batch-ingest.md` for the full agent guidance.
 
 ## Output Files
 
@@ -213,6 +241,13 @@ Field meanings:
 - `key_takeaways`: array of concise takeaways
 
 The CLI validates the JSON before exiting successfully and checks that `id` and `source_url` match the current ingest context.
+
+## Agent Skills
+
+The `skill/` folder contains guidance documents for AI agents using the MCP server. They encode the decision logic, retry behaviour, error handling, and output formatting that an agent needs to use the tools effectively.
+
+- `skill/SKILL.md` — single video ingest
+- `skill/SKILL-batch-ingest.md` — batch ingest from playlists, channels, or URL lists
 
 ## Development
 

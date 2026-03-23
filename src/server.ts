@@ -7,9 +7,9 @@ import {
 
 import { createIngestContext } from "./runtime.js";
 import { downloadVideo } from "./download.js";
-import { transcribeAudio as transcribeWithWhisper } from "./transcribe.js";
+import { transcribeAudio as transcribeWithWhisper, tryDownloadSubtitles } from "./transcribe.js";
 import { analyzeTranscript, ensureOllamaReachable } from "./analyze.js";
-import { tryDownloadSubtitles } from "./transcribe.js";
+import { expandPlaylist } from "./expand_playlist.js";
 
 // ---------------------------------------------------------------------------
 // Tool definitions
@@ -95,6 +95,21 @@ const TOOLS = [
       required: ["url", "transcript"],
     },
   },
+  {
+    name: "expand_playlist",
+    description:
+      "Expand a YouTube playlist or channel URL into a flat list of individual video URLs and titles. Use this before batch ingesting — pass the resulting URLs one by one through the single-video pipeline. Also accepts individual video URLs (returns a single-item list).",
+    inputSchema: {
+      type: "object",
+      properties: {
+        url: {
+          type: "string",
+          description: "A YouTube playlist URL, channel URL, or individual video URL.",
+        },
+      },
+      required: ["url"],
+    },
+  },
 ] as const;
 
 // ---------------------------------------------------------------------------
@@ -144,6 +159,11 @@ async function handleAnalyseTranscript(args: { url: string; transcript: string }
   return result;
 }
 
+async function handleExpandPlaylist(args: { url: string }) {
+  const entries = await expandPlaylist(args.url);
+  return { count: entries.length, videos: entries };
+}
+
 // ---------------------------------------------------------------------------
 // Server bootstrap
 // ---------------------------------------------------------------------------
@@ -178,6 +198,9 @@ server.setRequestHandler(CallToolRequestSchema, async (request) => {
         break;
       case "analyse_transcript":
         result = await handleAnalyseTranscript(args as { url: string; transcript: string });
+        break;
+      case "expand_playlist":
+        result = await handleExpandPlaylist(args as { url: string });
         break;
       default:
         throw new Error(`Unknown tool: ${name}`);
