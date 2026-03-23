@@ -69,7 +69,7 @@ function subtitleUnavailable(output: string): boolean {
   );
 }
 
-async function tryDownloadSubtitles(context: IngestContext): Promise<string | null> {
+export async function tryDownloadSubtitles(context: IngestContext): Promise<string | null> {
   await fs.ensureDir(TRANSCRIPTS_DIR);
   await fs.remove(context.transcriptPath);
   const ytDlp = await resolveExecutable("yt-dlp");

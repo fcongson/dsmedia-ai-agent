@@ -4,9 +4,11 @@
   "private": true,
   "type": "module",
   "scripts": {
-    "ingest": "tsx src/ingest.ts"
+    "ingest": "tsx src/ingest.ts",
+    "server": "tsx src/server.ts"
   },
   "dependencies": {
+    "@modelcontextprotocol/sdk": "^1.0.0",
     "execa": "^9.6.0",
     "fs-extra": "^11.3.2",
     "node-fetch": "^3.3.2"
