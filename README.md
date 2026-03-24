@@ -2,6 +2,8 @@
 
 A Node.js + TypeScript pipeline that ingests YouTube videos and produces structured JSON analysis with stable, source-linked artifact names. Supports single videos and batch ingest from playlists, channels, or URL lists. Can be run as a CLI, an MCP server for use with Claude Desktop, or wired into Open WebUI via a proxy.
 
+![DS.media AI Agent demo in Open WebUI](./assets/ds-media-ai-agent-demo.gif)
+
 ## What It Does
 
 Given a YouTube URL, the pipeline:
@@ -143,9 +145,12 @@ Your tools are now available at `http://localhost:8000`. Visit `http://localhost
 
 - URL: `http://localhost:8000` (use `http://host.docker.internal:8000` if Open WebUI is running in Docker)
 - API Key: the key you set above
-- Type: `MCP (Streamable HTTP)`
+- Type: `OpenAPI`
 
-**Step 4:** In a chat, click the **➕** button to enable the `dsmedia-ai-agent` tools, then ask the model to analyse a YouTube video.
+**Step 4:** Enable the tools for your model. There are two ways:
+
+- **Per chat**: click the **➕** button in the chat input and toggle on `dsmedia-ai-agent`
+- **By default**: go to **Workspace → Models → (your model) → Tools**, check **DS.Media AI Agent**, and save — the tools will be active for every chat with that model without needing to toggle them on each time
 
 The full local stack looks like this:
 
