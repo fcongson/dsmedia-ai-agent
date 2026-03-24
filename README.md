@@ -128,7 +128,7 @@ Open WebUI requires HTTP-based MCP connections rather than stdio. Use `mcpo` to 
 **Step 1:** Install `uv` if you don't have it:
 
 ```sh
-pip install uv
+brew install uv
 ```
 
 **Step 2:** Start the proxy:
