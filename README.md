@@ -4,6 +4,8 @@ A Node.js + TypeScript pipeline that ingests YouTube videos and produces structu
 
 ![DS.media AI Agent demo in Open WebUI](./assets/ds-media-ai-agent-demo.gif)
 
+![DS.media AI Agent in Claude Desktop](./assets/ds-media-ai-agent-claude-desktop.png)
+
 ## What It Does
 
 Given a YouTube URL, the pipeline:
@@ -108,20 +110,25 @@ This opens a local web UI where you can call each tool and inspect the response.
 
 #### Wiring into Claude Desktop
 
-Add the following to your `claude_desktop_config.json`:
+Add the following to your `claude_desktop_config.json`, replacing the repo path with your own absolute path:
 
 ```json
 {
   "mcpServers": {
     "dsmedia-ai-agent": {
-      "command": "npx",
-      "args": ["tsx", "/path/to/your/repo/src/server.ts"]
+      "command": "/opt/homebrew/bin/node",
+      "args": [
+        "/absolute/path/to/repo/node_modules/.bin/tsx",
+        "/absolute/path/to/repo/src/server.ts"
+      ]
     }
   }
 }
 ```
 
-Restart Claude Desktop, then ask it to analyse a YouTube video and it will call the tools automatically.
+Run `pwd` in your repo directory to get the absolute path. Use the full path to `node` and the local `node_modules/.bin/tsx` binary — using `npx` or a relative path will cause Node version resolution issues.
+
+Restart Claude Desktop after saving, then ask Claude to analyse a YouTube video and it will call the tools automatically.
 
 #### Wiring into Open WebUI
 

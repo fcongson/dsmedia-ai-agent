@@ -1,7 +1,7 @@
 import path from "node:path";
 import { execa } from "execa";
 import fs from "fs-extra";
-import { TRANSCRIPTS_DIR, type IngestContext, resolveExecutable } from "./runtime.js";
+import { getDataDirs, type IngestContext, resolveExecutable } from "./runtime.js";
 
 function stripMarkup(line: string): string {
   return line
@@ -70,6 +70,7 @@ function subtitleUnavailable(output: string): boolean {
 }
 
 export async function tryDownloadSubtitles(context: IngestContext): Promise<string | null> {
+  const { TRANSCRIPTS_DIR } = getDataDirs();
   await fs.ensureDir(TRANSCRIPTS_DIR);
   await fs.remove(context.transcriptPath);
   const ytDlp = await resolveExecutable("yt-dlp");
@@ -116,7 +117,7 @@ async function transcribeWithWhisper(context: IngestContext): Promise<string> {
   const whisper = await resolveExecutable("whisper");
 
   await fs.remove(context.transcriptPath);
-  await execa(whisper, [context.audioPath, "--model", "base", "--output_dir", path.join("data", "transcripts")]);
+  await execa(whisper, [context.audioPath, "--model", "base", "--output_dir", context.transcriptDir]);
 
   const exists = await fs.pathExists(context.transcriptPath);
   if (!exists) {

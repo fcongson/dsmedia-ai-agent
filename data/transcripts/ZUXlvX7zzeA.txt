@@ -1,0 +1,223 @@
+Hi everyone, welcome back. And in this
+video, I'm here to share a really
+exciting feature in Figma with you. This
+feature is called the Dev Mode MCP
+server. Now MCP stands for model context
+protocol and it's essentially an open
+protocol that begins to standardize how
+context is passed from tools like Figma
+into LLMs that might be in other tools
+like cursor. This is a really
+interesting feature, I think, because it
+allows us to start something in Figma
+and take it out and begin to work with
+it elsewhere. Now, for a long time,
+we've been able to share images with
+LLMs. The problem was that while there
+was a lot of visual information there,
+the LLM had to make a lot of assumptions
+about what we were sharing. The Dev Mode
+MCP server really solidifies that
+connection between the tools. And so,
+the LLM is able to see exactly what
+we're doing in Figma, including all of
+the structure and layout that we're
+applying to the design. There's a lot
+here, and honestly, it's a new tool that
+I'm beginning to explore myself. So, in
+this video, I'd love to share with you
+how to enable the MCP server in Figma
+and how to connect it in another tool
+such as cursor, which is an AI code
+editor. So, with that, let's hop in
+Figma. Here in Figma, and we have our
+website design. Now, there's nothing
+special about this design at all, other
+than the fact that it has auto layout
+and constraints applied to make it
+responsive. This allows me to make the
+frame a little wider or a little more
+narrow, and of course, the content stays
+responsive. Now, to get started in
+enabling the MCP server on Figma, we'll
+head up here to our top Figma menu. When
+we tap on this and go down to
+preferences, about halfway down, we see
+an option to enable the dev mode MCP
+server. When I click on this, a message
+is shown at the bottom that says that
+the server has been enabled. In my case,
+on localhost 3845. Now, you don't have
+to worry too much about that message.
+It's really just to confirm that
+everything was set up successfully.
+Pretty easy, right? Now, the next step
+is to install a tool like Cursor. Cursor
+again is an AI code editor here on the
+Mac and it's what I use outside of
+Figma. If you navigate to
+docs.cursor.com/tools,
+here we'll see a list of all of the MCP
+tools available that we can install.
+Here we see the option to add Figma 2
+cursor. Once we have cursor installed,
+and when we press this, we're almost
+ready to go. Now, with cursor open,
+we're ready to begin connecting Figma to
+Cursor. Now, with cursor open, we're
+ready for the next step. I've created a
+directory called Figma MCP here on my
+Mac. You can name your folder whatever
+you would like, but once we tap into it,
+now we're ready to begin exploring. Now,
+when we open up cursor settings on the
+lefth hand side, we'll see an option
+here called MCP tools. Here in the
+middle, I see Figma, and it looks like
+it's currently disabled, at least here
+on my account. I'll go ahead and enable
+it, and we should see everything
+enabled, including the four tools
+within. Now, if you don't see this, or
+if you're stuck in a loading state, try
+quitting both cursor and Figma. This
+happened once for me, and doing so
+completely fixed the issue. You can also
+always click on the edit icon here to
+double check that the address that was
+shown earlier is correct. And in my
+case, this looks good. And believe it or
+not, that's it. We've just connected our
+Figma Dev Mode MCP server here to
+cursor. And we're ready to begin
+exploring that design. Now, the first
+thing I'll do is I'll navigate back to
+Figma, and I want to make sure that the
+frame that I'm hoping to bring into
+Cursor is selected. That's the only
+thing we need to do to allow Cursor to
+see what we're focused on is just select
+the frame. Now, if I go back in cursor
+on the right hand side, we'll enter our
+new chat. If you don't see this and
+you're on a Mac, just hit commandshift
+I. That'll allow you to hide or show
+that chat sidebar. Now, I'll paste in a
+prompt here that says to take this
+selected frame from Figma and turn it
+into a static website using both HTML
+and Tailwind CSS. I also wrote that the
+result should be a single HTML file that
+can be opened locally on a browser. I'll
+be sure to put this prompt in the module
+if you would like to copy it. Now, the
+other thing that's really interesting
+here is we only had to say take a
+selected frame from Figma. We didn't
+need to bring in the link or share it in
+any additional way with cursor. We
+instead just told it to focus on that
+selected frame. With that, I'll go ahead
+and tap enter. And cursor is off to
+work. It's asking to use the MCP tool.
+And I'll go ahead and give it access.
+And it's continuing on. Now, we can see
+cursor working and the model is sharing
+with us what it's reasoning and what
+it's thinking. It even confirms that it
+can see a beautiful photography
+portfolio design. right from Figma. And
+it's sharing what it's doing next, which
+is to convert that to a static HTML
+page. All right. And just like that,
+cursor's finished. And check this out.
+It has created that new index. HTML file
+for us. And it confirmed that it was an
+exact design match. It includes the
+navigation bar, the content section, and
+the image grid, all right from that
+Figma file. Now, if we open up the file
+here, we see our design right in the
+browser. Now, we have placeholders for
+those images here, which is all fine for
+now. But at the top we see our
+navigation bar. We see our content
+section and believe it or not it's
+completely responsive as well. I also
+noticed something really cool which was
+the button up here at the top in the
+navigation bar is functional. Even more
+interesting is so do the navigation bar
+links next to it. As I hover over about
+we can see that that is also a link and
+as we hover over order prints that is
+also a link that I could work with.
+That's pretty awesome right? We took a
+design that we were working on in Figma.
+We collaborated with Cursor through the
+Dev Mode MCP server. And now we have a
+static site right in our browser that we
+could inspect, view, and push even
+further. What's really great about
+Cursor as well is we could continue to
+push this design forward right within
+the tool. If there's anything about this
+that feels off or I don't quite like, I
+could ask Cursor to iterate on it again.
+Now, as cursor is looking at Figma, not
+only is it taking the overall design
+into consideration, but it's also taking
+any layer names, any auto layout
+structures, or even any variables into
+consideration as it's creating what
+we're asking. I just think this whole
+thing is really, really interesting, and
+it's the first time I've thought to
+design something in Figma, but actually
+push it a little bit further outside of
+the tool. So, that's the dev mode MCP
+server. Again, it's a feature I'm still
+playing around with and getting used to,
+but within a few clicks, we were
+successfully able to connect Figma to
+another tool like Cursor where we
+established that connection. Probably
+the coolest part of it all is we just
+told Cursor to take this selected frame
+and get to work on it. Cursor knew
+exactly what we were talking about
+because of that MCP server connection.
+I'm really excited to push this forward
+and to be honest, it's having me begin
+thinking about how I use Figma in
+relation to other tools. In some cases,
+it might be easier to push a design
+forward within Figma, but in other
+cases, it might be easier to prototype
+it and push it forward outside of Figma.
+The amazing thing is though that these
+tools are now working together, and
+that's just not something that was
+possible before, especially as we were
+using LLMs. All right, everyone. That's
+Dev Mode, MCP Server, and Figma. If you
+tried this out and explored it, let me
+know. I would love to see what you built
+and to better understand how it all
+worked for you. Also, as you think about
+this new tool, I'm curious, how are you
+going to be using it in your workflow? I
+think a lot of us designers are now
+going to begin exploring and thinking
+more about that question. It honestly
+feels like a whole new world is
+beginning to open up more and more
+within the prototyping and the building
+phase, and I'm personally really looking
+forward to seeing how I can push my
+designs that I'm creating in Figma
+forward with the help of other tools.
+All right, thank you for joining this
+one. As always, please let me know if
+you have any questions at all. I'm
+looking forward to seeing you

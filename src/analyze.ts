@@ -1,7 +1,7 @@
 import path from "node:path";
 import fs from "fs-extra";
 import fetch from "node-fetch";
-import { ANALYSIS_DIR, type IngestContext } from "./runtime.js";
+import { getDataDirs, type IngestContext } from "./runtime.js";
 
 const OLLAMA_URL = "http://localhost:11434";
 
@@ -110,6 +110,7 @@ async function generateAnalysis(model: string, transcript: string): Promise<Mode
 }
 
 export async function analyzeTranscript(context: IngestContext, transcript: string): Promise<AnalysisResult> {
+  const { ANALYSIS_DIR } = getDataDirs();
   await fs.ensureDir(ANALYSIS_DIR);
   await ensureOllamaReachable();
 

@@ -11,6 +11,9 @@ import { transcribeAudio as transcribeWithWhisper, tryDownloadSubtitles } from "
 import { analyzeTranscript, ensureOllamaReachable } from "./analyze.js";
 import { expandPlaylist } from "./expand_playlist.js";
 
+// Log working directory at startup for debugging
+console.error(`[dsmedia-ai-agent] cwd: ${process.cwd()}`);
+
 // ---------------------------------------------------------------------------
 // Tool definitions
 // ---------------------------------------------------------------------------

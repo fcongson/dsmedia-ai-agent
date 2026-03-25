@@ -1,10 +1,20 @@
 import path from "node:path";
+import { fileURLToPath } from "node:url";
 import fs from "fs-extra";
 
 const LOCAL_VENV_BIN = path.resolve(".venv/bin");
-const AUDIO_DIR = path.resolve("data/audio");
-const TRANSCRIPTS_DIR = path.resolve("data/transcripts");
-const ANALYSIS_DIR = path.resolve("data/analysis");
+
+// Resolve data dirs relative to this file's location (src/), not process.cwd()
+// This ensures paths work correctly regardless of what cwd the MCP client sets.
+const ROOT_DIR = path.resolve(fileURLToPath(import.meta.url), "..", "..");
+
+export function getDataDirs() {
+  return {
+    AUDIO_DIR: path.join(ROOT_DIR, "data", "audio"),
+    TRANSCRIPTS_DIR: path.join(ROOT_DIR, "data", "transcripts"),
+    ANALYSIS_DIR: path.join(ROOT_DIR, "data", "analysis"),
+  };
+}
 
 export interface IngestContext {
   id: string;
@@ -68,6 +78,8 @@ export function createIngestContext(sourceUrl: string): IngestContext {
     throw new Error("Unable to determine YouTube video ID from URL.");
   }
 
+  const { AUDIO_DIR, TRANSCRIPTS_DIR, ANALYSIS_DIR } = getDataDirs();
+
   return {
     id,
     sourceUrl,
@@ -75,8 +87,6 @@ export function createIngestContext(sourceUrl: string): IngestContext {
     transcriptPath: path.resolve(TRANSCRIPTS_DIR, `${id}.txt`),
     analysisPath: path.resolve(ANALYSIS_DIR, `${id}.json`),
     transcriptDir: TRANSCRIPTS_DIR,
-    subtitleStem: path.join("data", "transcripts", id),
+    subtitleStem: path.join(ROOT_DIR, "data", "transcripts", id),
   };
 }
-
-export { ANALYSIS_DIR, AUDIO_DIR, TRANSCRIPTS_DIR };

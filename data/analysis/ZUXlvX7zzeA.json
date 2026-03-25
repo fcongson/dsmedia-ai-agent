@@ -1,0 +1,20 @@
+{
+  "id": "ZUXlvX7zzeA",
+  "source_url": "https://www.youtube.com/watch?v=ZUXlvX7zzeA",
+  "summary": "Figma introduces the Dev Mode MCP server to standardize context passing between design tools and LLMs, allowing LLMs to understand design structure and layout beyond just images when connected with tools like Cursor.",
+  "tags": [
+    "Figma",
+    "MCP Protocol",
+    "Dev Mode",
+    "AI Integration",
+    "Cursor",
+    "Design Tools"
+  ],
+  "key_takeaways": [
+    "MCP (Model Context Protocol) standardizes how tools pass context to LLMs.",
+    "Previously, image sharing with LLMs lacked sufficient structural context.",
+    "The Dev Mode MCP server allows LLMs to see design structure and layout in Figma.",
+    "This feature enables workflows starting in Figma and continuing in AI code editors like Cursor.",
+    "The video demonstrates how to enable the MCP server in Figma and connect it to external tools."
+  ]
+}
