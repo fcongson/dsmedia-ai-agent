@@ -1,11 +1,11 @@
-import path from "node:path";
 import fs from "fs-extra";
-import fetch from "node-fetch";
 import { getDataDirs, type IngestContext } from "./runtime.js";
+import { resolveLlmConfig, type LlmConfig } from "./config.js";
+import { ensureOllamaReachable, generateOllamaResponse, resolveOllamaModel } from "./ollama.js";
 
-const OLLAMA_URL = "http://localhost:11434";
+type ProgressLogger = (message: string) => void;
 
-interface ModelAnalysis {
+export interface ModelAnalysis {
   summary: string;
   tags: string[];
   key_takeaways: string[];
@@ -16,7 +16,9 @@ export interface AnalysisResult extends ModelAnalysis {
   source_url: string;
 }
 
-function buildPrompt(transcript: string): string {
+function noopLogger(): void {}
+
+function buildPrompt(transcript: string, label = "Transcript"): string {
   return `Return ONLY valid JSON:
 
 {
@@ -31,8 +33,21 @@ Rules:
 - tags must be array
 - key_takeaways must be array
 
-Transcript:
+${label}:
 ${transcript}`;
+}
+
+function buildChunkSummaryPrompt(chunk: string, index: number, total: number): string {
+  return `Summarize this transcript chunk as compact plain text notes for a later final synthesis.
+
+Rules:
+- No markdown fences
+- Keep it under 8 short bullet lines
+- Include important names, products, claims, and decisions
+- Do not add commentary outside the notes
+
+Chunk ${index} of ${total}:
+${chunk}`;
 }
 
 function isModelAnalysis(value: unknown): value is ModelAnalysis {
@@ -48,33 +63,6 @@ function isModelAnalysis(value: unknown): value is ModelAnalysis {
   );
 }
 
-async function fetchJson<T>(url: string, init?: Parameters<typeof fetch>[1]): Promise<T> {
-  const response = await fetch(url, init);
-  if (!response.ok) {
-    throw new Error(`HTTP ${response.status} from ${url}`);
-  }
-  return (await response.json()) as T;
-}
-
-export async function ensureOllamaReachable(): Promise<void> {
-  try {
-    await fetchJson<{ models: Array<{ name: string }> }>(`${OLLAMA_URL}/api/tags`);
-  } catch (error) {
-    throw new Error(`Ollama is not reachable at ${OLLAMA_URL}: ${(error as Error).message}`);
-  }
-}
-
-async function resolveModelName(): Promise<string> {
-  const tags = await fetchJson<{ models: Array<{ name: string; model?: string }> }>(`${OLLAMA_URL}/api/tags`);
-  const modelNames = tags.models.map((model) => model.name || model.model).filter(Boolean) as string[];
-  if (modelNames.length === 0) {
-    throw new Error("No Ollama models are available.");
-  }
-
-  const preferred = modelNames.find((name) => name === "llama3" || name.startsWith("llama3:"));
-  return preferred ?? modelNames[0];
-}
-
 function extractJsonBlock(raw: string): string {
   const trimmed = raw.trim();
   const fenceMatch = trimmed.match(/```(?:json)?\s*([\s\S]*?)\s*```/u);
@@ -84,20 +72,19 @@ function extractJsonBlock(raw: string): string {
   return trimmed;
 }
 
-async function generateAnalysis(model: string, transcript: string): Promise<ModelAnalysis> {
-  const response = await fetchJson<{ response: string }>(`${OLLAMA_URL}/api/generate`, {
-    method: "POST",
-    headers: {
-      "content-type": "application/json",
-    },
-    body: JSON.stringify({
-      model,
-      prompt: buildPrompt(transcript),
-      stream: false,
-    }),
-  });
+function parseModelAnalysis(rawResponse: string): ModelAnalysis {
+  const extracted = extractJsonBlock(rawResponse);
+  if (!extracted) {
+    throw new Error("Model returned an empty response.");
+  }
 
-  const parsed = JSON.parse(extractJsonBlock(response.response)) as unknown;
+  let parsed: unknown;
+  try {
+    parsed = JSON.parse(extracted) as unknown;
+  } catch (error) {
+    throw new Error(`Model returned invalid JSON (${extracted.length} chars): ${(error as Error).message}`);
+  }
+
   if (!isModelAnalysis(parsed)) {
     throw new Error("Generated JSON does not match required schema.");
   }
@@ -109,17 +96,125 @@ async function generateAnalysis(model: string, transcript: string): Promise<Mode
   };
 }
 
-export async function analyzeTranscript(context: IngestContext, transcript: string): Promise<AnalysisResult> {
+function estimateDirectTranscriptLimit(config: LlmConfig): number {
+  const configuredCtx = config.numCtx ?? 8192;
+  const estimated = Math.floor((configuredCtx * 2.5) - 2000);
+  return Math.min(12000, Math.max(6000, estimated));
+}
+
+function splitTranscriptIntoChunks(transcript: string, maxChars: number): string[] {
+  const sections = transcript
+    .split(/\n{2,}/u)
+    .map((section) => section.trim())
+    .filter(Boolean);
+
+  const chunks: string[] = [];
+  let current = "";
+
+  const pushSection = (section: string) => {
+    if (section.length <= maxChars) {
+      if (!current) {
+        current = section;
+        return;
+      }
+
+      const candidate = `${current}\n\n${section}`;
+      if (candidate.length <= maxChars) {
+        current = candidate;
+      } else {
+        chunks.push(current);
+        current = section;
+      }
+      return;
+    }
+
+    if (current) {
+      chunks.push(current);
+      current = "";
+    }
+
+    for (let start = 0; start < section.length; start += maxChars) {
+      chunks.push(section.slice(start, start + maxChars));
+    }
+  };
+
+  for (const section of sections.length > 0 ? sections : [transcript]) {
+    pushSection(section);
+  }
+
+  if (current) {
+    chunks.push(current);
+  }
+
+  return chunks;
+}
+
+async function summarizeLongTranscript(
+  config: LlmConfig,
+  model: string,
+  transcript: string,
+  log: ProgressLogger,
+): Promise<{ content: string; label: string }> {
+  const maxChars = estimateDirectTranscriptLimit(config);
+  if (transcript.length <= maxChars) {
+    return { content: transcript, label: "Transcript" };
+  }
+
+  const chunks = splitTranscriptIntoChunks(transcript, maxChars);
+  log(`Transcript is ${transcript.length} chars; summarizing ${chunks.length} chunks before final analysis`);
+
+  const chunkSummaries: string[] = [];
+  for (const [index, chunk] of chunks.entries()) {
+    log(`Summarizing transcript chunk ${index + 1}/${chunks.length}`);
+    const summary = (await generateOllamaResponse(
+      { ...config, structuredOutput: false, temperature: Math.min(config.temperature, 0.2) },
+      model,
+      buildChunkSummaryPrompt(chunk, index + 1, chunks.length),
+    )).trim();
+
+    if (!summary) {
+      throw new Error(`Model returned an empty summary for chunk ${index + 1}.`);
+    }
+
+    chunkSummaries.push(`Chunk ${index + 1} notes:\n${summary}`);
+  }
+
+  return {
+    content: chunkSummaries.join("\n\n"),
+    label: "Synthesized transcript notes",
+  };
+}
+
+async function generateAnalysis(
+  config: LlmConfig,
+  model: string,
+  transcript: string,
+  log: ProgressLogger,
+): Promise<ModelAnalysis> {
+  const prepared = await summarizeLongTranscript(config, model, transcript, log);
+  const rawResponse = await generateOllamaResponse(config, model, buildPrompt(prepared.content, prepared.label));
+  return parseModelAnalysis(rawResponse);
+}
+
+export async function analyzeTranscript(
+  context: IngestContext,
+  transcript: string,
+  overrides?: Partial<LlmConfig>,
+  log: ProgressLogger = noopLogger,
+): Promise<AnalysisResult> {
   const { ANALYSIS_DIR } = getDataDirs();
   await fs.ensureDir(ANALYSIS_DIR);
-  await ensureOllamaReachable();
+  const config = await resolveLlmConfig({ overrides });
+  await ensureOllamaReachable(config.baseUrl);
 
-  const model = await resolveModelName();
+  const model = await resolveOllamaModel(config);
+  log(`Analysis model: ${model} (${transcript.length} transcript chars)`);
   let lastError: Error | null = null;
 
   for (let attempt = 1; attempt <= 3; attempt += 1) {
     try {
-      const modelAnalysis = await generateAnalysis(model, transcript);
+      log(`Generating analysis attempt ${attempt}/3`);
+      const modelAnalysis = await generateAnalysis(config, model, transcript, log);
       const analysis: AnalysisResult = {
         id: context.id,
         source_url: context.sourceUrl,
@@ -129,6 +224,7 @@ export async function analyzeTranscript(context: IngestContext, transcript: stri
       return analysis;
     } catch (error) {
       lastError = error as Error;
+      log(`Analysis attempt ${attempt}/3 failed: ${lastError.message}`);
     }
   }
 

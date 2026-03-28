@@ -1,0 +1,36 @@
+{
+  "id": "dsmedia-ai-agent",
+  "name": "DS.media AI Agent",
+  "description": "Single-video YouTube ingest, transcript, and analysis guidance for MCP and CLI workflows.",
+  "supportedTools": [
+    "parse_video_id",
+    "download_audio",
+    "fetch_subtitles",
+    "transcribe_audio",
+    "analyse_transcript"
+  ],
+  "supportedCommands": [
+    "ingest_video",
+    "parse_video_id",
+    "download_audio",
+    "fetch_subtitles",
+    "transcribe_audio",
+    "analyse_transcript"
+  ],
+  "artifacts": [
+    "data/audio/<videoId>.mp3",
+    "data/transcripts/<videoId>.txt",
+    "data/transcripts/<videoId>*.vtt",
+    "data/analysis/<videoId>.json"
+  ],
+  "defaults": {
+    "llmProfile": "balanced",
+    "transcriptStrategy": "subtitle-first with Whisper fallback"
+  },
+  "portabilityTargets": [
+    "claude-desktop",
+    "codex",
+    "open-webui",
+    "generic-mcp-client"
+  ]
+}

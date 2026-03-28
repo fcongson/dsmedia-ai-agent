@@ -1,0 +1,9 @@
+{
+  "llm": {
+    "provider": "ollama",
+    "baseUrl": "http://localhost:11434",
+    "profile": "balanced",
+    "temperature": 0.2,
+    "structuredOutput": true
+  }
+}

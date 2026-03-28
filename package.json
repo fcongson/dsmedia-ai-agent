@@ -4,8 +4,20 @@
   "private": true,
   "type": "module",
   "scripts": {
-    "ingest": "tsx src/ingest.ts",
-    "server": "tsx src/server.ts"
+    "cli": "node --import tsx src/cli.ts",
+    "ingest": "node --import tsx src/ingest.ts",
+    "ingest_video": "node --import tsx src/cli.ts ingest_video",
+    "ingest_batch": "node --import tsx src/cli.ts ingest_batch",
+    "parse_video_id": "node --import tsx src/cli.ts parse_video_id",
+    "download_audio": "node --import tsx src/cli.ts download_audio",
+    "fetch_subtitles": "node --import tsx src/cli.ts fetch_subtitles",
+    "transcribe_audio": "node --import tsx src/cli.ts transcribe_audio",
+    "analyse_transcript": "node --import tsx src/cli.ts analyse_transcript",
+    "expand_playlist": "node --import tsx src/cli.ts expand_playlist",
+    "server": "node --import tsx src/server.ts",
+    "typecheck": "tsc --noEmit",
+    "validate": "node --import tsx src/validate.ts",
+    "test": "node --import tsx --test src/*.test.ts"
   },
   "dependencies": {
     "@modelcontextprotocol/sdk": "^1.0.0",

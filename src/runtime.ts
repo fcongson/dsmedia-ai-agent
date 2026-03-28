@@ -6,7 +6,7 @@ const LOCAL_VENV_BIN = path.resolve(".venv/bin");
 
 // Resolve data dirs relative to this file's location (src/), not process.cwd()
 // This ensures paths work correctly regardless of what cwd the MCP client sets.
-const ROOT_DIR = path.resolve(fileURLToPath(import.meta.url), "..", "..");
+export const ROOT_DIR = path.resolve(fileURLToPath(import.meta.url), "..", "..");
 
 export function getDataDirs() {
   return {

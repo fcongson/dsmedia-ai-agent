@@ -58,6 +58,33 @@ async function listSubtitleFiles(context: IngestContext): Promise<string[]> {
     .sort();
 }
 
+function subtitlePreferenceScore(filePath: string, videoId: string): number {
+  const fileName = path.basename(filePath);
+  const preferences = [
+    `${videoId}.en.vtt`,
+    `${videoId}.en-US.vtt`,
+    `${videoId}.en-GB.vtt`,
+  ];
+
+  const exactIndex = preferences.indexOf(fileName);
+  if (exactIndex >= 0) {
+    return exactIndex;
+  }
+
+  if (fileName.startsWith(`${videoId}.en-`) || fileName.startsWith(`${videoId}.en.`)) {
+    return 10;
+  }
+
+  return 100;
+}
+
+function selectPreferredSubtitleFile(files: string[], videoId: string): string {
+  return [...files].sort((left, right) => {
+    const scoreDiff = subtitlePreferenceScore(left, videoId) - subtitlePreferenceScore(right, videoId);
+    return scoreDiff !== 0 ? scoreDiff : left.localeCompare(right);
+  })[0];
+}
+
 function subtitleUnavailable(output: string): boolean {
   const normalized = output.toLowerCase();
   return (
@@ -84,6 +111,8 @@ export async function tryDownloadSubtitles(context: IngestContext): Promise<stri
       "--skip-download",
       "--write-sub",
       "--write-auto-sub",
+      "--sub-langs",
+      "en.*,en",
       "-o",
       `${context.subtitleStem}.%(ext)s`,
       context.sourceUrl,
@@ -99,7 +128,14 @@ export async function tryDownloadSubtitles(context: IngestContext): Promise<stri
     return null;
   }
 
-  const vttContent = await fs.readFile(subtitleFiles[0], "utf8");
+  const preferredSubtitleFile = selectPreferredSubtitleFile(subtitleFiles, context.id);
+  await Promise.all(
+    subtitleFiles
+      .filter((file) => file !== preferredSubtitleFile)
+      .map((file) => fs.remove(file)),
+  );
+
+  const vttContent = await fs.readFile(preferredSubtitleFile, "utf8");
   const transcript = normalizeVttToPlainText(vttContent);
   if (!transcript) {
     return null;
@@ -109,7 +145,7 @@ export async function tryDownloadSubtitles(context: IngestContext): Promise<stri
   return transcript;
 }
 
-async function transcribeWithWhisper(context: IngestContext): Promise<string> {
+export async function transcribeWithWhisper(context: IngestContext): Promise<string> {
   const audioExists = await fs.pathExists(context.audioPath);
   if (!audioExists) {
     throw new Error(`Audio file missing for Whisper fallback: ${context.audioPath}`);

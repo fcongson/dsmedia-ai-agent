@@ -1,44 +1,56 @@
 # DS.media AI Agent
 
-A Node.js + TypeScript pipeline that ingests YouTube videos and produces structured JSON analysis with stable, source-linked artifact names. Supports single videos and batch ingest from playlists, channels, or URL lists. Can be run as a CLI, an MCP server for use with Claude Desktop, or wired into Open WebUI via a proxy.
+A Node.js + TypeScript YouTube ingest pipeline that exposes one shared workflow through four aligned surfaces:
+
+- MCP tools
+- CLI commands
+- skill manifests and markdown guidance
+- configurable Ollama-backed LLM runtime
+
+The repo ingests a YouTube video, produces transcript artifacts, and writes structured JSON analysis keyed by the canonical YouTube video ID.
 
 ![DS.media AI Agent demo in Open WebUI](./assets/ds-media-ai-agent-demo.gif)
 
 ![DS.media AI Agent in Claude Desktop](./assets/ds-media-ai-agent-claude-desktop.png)
 
-## What It Does
+## What The Pipeline Does
 
-Given a YouTube URL, the pipeline:
+For each video, the pipeline:
 
-1. Downloads audio with `yt-dlp`
-2. Attempts to download YouTube subtitles first
-3. Parses `.vtt` subtitles into plain text when available
+1. Resolves the canonical YouTube video ID
+2. Downloads audio with `yt-dlp` when needed
+3. Prefers YouTube subtitles or auto-captions when available
 4. Falls back to Whisper transcription when subtitles are unavailable
-5. Summarizes the transcript with Ollama
+5. Sends the transcript to a local Ollama model
 6. Writes validated JSON to `data/analysis/<videoId>.json`
 
-The YouTube video ID is the canonical identifier for all generated artifacts.
+For long transcripts, the analysis step now summarizes the transcript in chunks before the final structured JSON pass so smaller local models are less likely to return truncated JSON.
 
-## Artifact Relationship Model
-
-Each ingest derives a `videoId` from the input YouTube URL and uses it as the filename stem for all outputs:
+Artifact paths are stable and source-linked:
 
 - `data/audio/<videoId>.mp3`
 - `data/transcripts/<videoId>.txt`
 - `data/transcripts/<videoId>*.vtt`
 - `data/analysis/<videoId>.json`
 
-This makes batch processing safe across different videos while preserving a direct relationship between the source URL and every generated file.
-
-Re-ingesting the same video overwrites that video ID's latest artifacts.
+When subtitles are available, the pipeline keeps one preferred English `.vtt` variant for the video and removes the rest.
 
 ## Requirements
 
 - Node.js
 - `yt-dlp`
 - `whisper` from `openai-whisper`
-- Ollama running locally on `http://localhost:11434`
-- An available Ollama model, preferably `llama3`
+- Ollama running locally
+- At least one Ollama model installed
+
+Recommended default profile for a 16 GB Apple Silicon machine:
+
+- `balanced` → `llama3.1:8b` (verified locally in this repo)
+
+Other built-in profiles:
+
+- `fast` → `gemma3:4b` (available, not yet locally validated here)
+- `quality` → `qwen3:8b` (available, not yet locally validated here)
 
 ## Install
 
@@ -48,69 +60,144 @@ Install project dependencies:
 npm install
 ```
 
-Install external tools with Homebrew:
+Install external tools:
 
 ```sh
 brew install yt-dlp
 brew install openai-whisper
 ```
 
-Make sure Ollama is running and has a model available:
+Confirm Ollama is running and has a model:
 
 ```sh
 ollama list
 ```
 
-## Usage
+## Configuration
 
-### CLI
+LLM configuration is layered in this order:
 
-Run the full pipeline directly with a YouTube URL:
+1. explicit runtime override
+2. environment variables
+3. `dsmedia.config.json`
+4. built-in defaults
 
-```sh
-npx tsx src/ingest.ts '<youtube-url>'
+The checked-in project config is:
+
+```json
+{
+  "llm": {
+    "provider": "ollama",
+    "baseUrl": "http://localhost:11434",
+    "profile": "balanced",
+    "temperature": 0.2,
+    "structuredOutput": true
+  }
+}
 ```
 
-Example:
+Supported environment variables:
+
+- `DSMEDIA_LLM_PROFILE`
+- `DSMEDIA_LLM_MODEL`
+- `DSMEDIA_LLM_BASE_URL`
+- `DSMEDIA_LLM_TEMPERATURE`
+- `DSMEDIA_LLM_NUM_CTX`
+- `DSMEDIA_LLM_STRUCTURED_OUTPUT`
+
+Examples:
 
 ```sh
-npx tsx src/ingest.ts 'https://www.youtube.com/watch?v=5MK3SkNST-0'
+DSMEDIA_LLM_PROFILE=fast npm run ingest_video -- 'https://www.youtube.com/watch?v=5MK3SkNST-0'
 ```
 
-Supported URL shapes include standard watch URLs, `youtu.be` links, and common YouTube embed/shorts variants as long as a valid video ID can be derived.
+```sh
+DSMEDIA_LLM_MODEL=llama3.1:8b npm run ingest_video -- 'https://www.youtube.com/watch?v=5MK3SkNST-0'
+```
 
-### MCP Server
+## CLI
 
-The pipeline is also exposed as an MCP server with composable tools. This allows AI agents and clients to call each pipeline step independently.
+The CLI now uses canonical command names that match the shared runtime registry.
 
-Start the server:
+Single video:
+
+```sh
+npm run ingest_video -- 'https://www.youtube.com/watch?v=5MK3SkNST-0'
+```
+
+Batch ingest:
+
+```sh
+npm run ingest_batch -- 'https://www.youtube.com/playlist?list=PLxxxxxxxx'
+```
+
+Batch ingest also accepts:
+
+- a channel URL
+- a single video URL
+- a text file with one URL per line
+
+Compatibility alias for the old single-video entrypoint:
+
+```sh
+npm run ingest -- 'https://www.youtube.com/watch?v=5MK3SkNST-0'
+```
+
+Direct CLI usage without npm scripts:
+
+```sh
+node --import tsx src/cli.ts ingest_video '<youtube-url>'
+node --import tsx src/cli.ts ingest_batch '<playlist-url-or-file>'
+```
+
+### Step-by-step CLI testing
+
+Each MCP tool can also be tested from the command line with the same canonical name:
+
+```sh
+npm run parse_video_id -- '<youtube-url>'
+npm run download_audio -- '<youtube-url>'
+npm run fetch_subtitles -- '<youtube-url>'
+npm run transcribe_audio -- '<youtube-url>'
+npm run analyse_transcript -- '<youtube-url>' 'data/transcripts/<videoId>.txt'
+npm run expand_playlist -- '<playlist-or-channel-url>'
+```
+
+Expected behavior by step:
+
+- `parse_video_id` returns the canonical video id plus expected artifact paths.
+- `download_audio` writes `data/audio/<videoId>.mp3`.
+- `fetch_subtitles` writes `data/transcripts/<videoId>.txt` and keeps one preferred English `.vtt` file when subtitles are available.
+- `transcribe_audio` produces `data/transcripts/<videoId>.txt`, using subtitles first and Whisper as fallback.
+- `analyse_transcript` reads transcript text from the file path you pass and writes `data/analysis/<videoId>.json`.
+- `expand_playlist` returns a flat list of video ids, URLs, and titles.
+
+## MCP
+
+Start the MCP server:
 
 ```sh
 npm run server
 ```
 
-The server communicates over stdio and exposes these tools:
+The server communicates over stdio and exposes these tools from the shared registry:
 
-- `parse_video_id` — parse a YouTube URL and return the video ID and expected artifact paths
-- `download_audio` — download the audio track as an MP3
-- `fetch_subtitles` — attempt to download YouTube subtitles or auto-captions
-- `transcribe_audio` — transcribe the audio using Whisper (fallback when subtitles are unavailable)
-- `analyse_transcript` — send the transcript to Ollama and return structured JSON analysis
-- `expand_playlist` — expand a playlist or channel URL into a flat list of individual video URLs and titles
+- `parse_video_id`
+- `download_audio`
+- `fetch_subtitles`
+- `transcribe_audio`
+- `analyse_transcript`
+- `expand_playlist`
 
-#### Testing with MCP Inspector
-
-To test tools individually without a client:
+### Test With MCP Inspector
 
 ```sh
-npx @modelcontextprotocol/inspector tsx src/server.ts
+npx @modelcontextprotocol/inspector node --import tsx src/server.ts
 ```
 
-This opens a local web UI where you can call each tool and inspect the response.
+### Claude Desktop
 
-#### Wiring into Claude Desktop
-
-Add the following to your `claude_desktop_config.json`, replacing the repo path with your own absolute path:
+Add this to `claude_desktop_config.json` with your absolute repo path:
 
 ```json
 {
@@ -118,7 +205,8 @@ Add the following to your `claude_desktop_config.json`, replacing the repo path 
     "dsmedia-ai-agent": {
       "command": "/opt/homebrew/bin/node",
       "args": [
-        "/absolute/path/to/repo/node_modules/.bin/tsx",
+        "--import",
+        "tsx",
         "/absolute/path/to/repo/src/server.ts"
       ]
     }
@@ -126,113 +214,38 @@ Add the following to your `claude_desktop_config.json`, replacing the repo path 
 }
 ```
 
-Run `pwd` in your repo directory to get the absolute path. Use the full path to `node` and the local `node_modules/.bin/tsx` binary — using `npx` or a relative path will cause Node version resolution issues.
+Restart Claude Desktop after saving the config.
 
-Restart Claude Desktop after saving, then ask Claude to analyse a YouTube video and it will call the tools automatically.
+### Open WebUI
 
-#### Wiring into Open WebUI
-
-Open WebUI requires HTTP-based MCP connections rather than stdio. Use `mcpo` to proxy the server over HTTP.
-
-**Step 1:** Install `uv` if you don't have it:
+Open WebUI expects an HTTP-facing MCP endpoint. Use `mcpo` as a proxy:
 
 ```sh
-brew install uv
+uvx mcpo --port 8000 --api-key "your-secret" -- node --import tsx src/server.ts
 ```
 
-**Step 2:** Start the proxy:
+Then point Open WebUI at `http://localhost:8000`.
 
-```sh
-uvx mcpo --port 8000 --api-key "your-secret" -- npx tsx src/server.ts
-```
+## Skills
 
-Your tools are now available at `http://localhost:8000`. Visit `http://localhost:8000/docs` to verify.
+The `skill/` directory now contains both human-readable guidance and machine-readable manifests:
 
-**Step 3:** Add the tool in Open WebUI under **Admin Settings → Tools → Add Tool**:
+- `skill/SKILL.md`
+- `skill/SKILL-batch-ingest.md`
+- `skill/dsmedia-ai-agent.manifest.json`
+- `skill/dsmedia-batch-ingest.manifest.json`
 
-- URL: `http://localhost:8000` (use `http://host.docker.internal:8000` if Open WebUI is running in Docker)
-- API Key: the key you set above
-- Type: `OpenAPI`
+Portability is handled in layers:
 
-**Step 4:** Enable the tools for your model. There are two ways:
+- MCP makes the executable tool interface portable across Claude and other MCP-aware clients.
+- Skill manifests make the workflow metadata portable across different AI tool ecosystems.
+- Markdown skill files remain the human-facing guidance layer.
 
-- **Per chat**: click the **➕** button in the chat input and toggle on `dsmedia-ai-agent`
-- **By default**: go to **Workspace → Models → (your model) → Tools**, check **DS.Media AI Agent**, and save — the tools will be active for every chat with that model without needing to toggle them on each time
+This means Claude and other AI tools can share the same runtime workflow even if each tool wraps the guidance differently.
 
-The full local stack looks like this:
+## Output Schema
 
-```
-Open WebUI  ←→  mcpo (port 8000)  ←→  src/server.ts (stdio)  ←→  yt-dlp / Whisper / Ollama
-```
-
-## Batch Ingest
-
-The MCP server supports batch processing via the `expand_playlist` tool. Pass a playlist URL, channel URL, or a plain text file of URLs — the agent will expand the list, skip already-processed videos, and work through each one sequentially with automatic retries.
-
-### URL list file format
-
-Create a plain text file with one URL per line. Blank lines and lines starting with `#` are ignored. Playlist and channel URLs are automatically expanded into individual video URLs.
-
-```
-# My batch list
-https://www.youtube.com/watch?v=abc123
-https://www.youtube.com/watch?v=def456
-https://www.youtube.com/playlist?list=PLxxxxxxxx
-```
-
-### How the agent handles the batch
-
-Before starting, the agent classifies every video into one of three states:
-
-- **DONE** — analysis already exists, skip
-- **PARTIAL** — audio or transcript exists but analysis does not, resume from the right step
-- **NEW** — no artifacts exist, run the full pipeline
-
-It then processes videos sequentially, retrying each failed step up to 2 times before moving on. A summary of successes and failures is presented at the end.
-
-See `skill/SKILL-batch-ingest.md` for the full agent guidance.
-
-## Output Files
-
-After a successful run, these files must exist:
-
-- `data/audio/<videoId>.mp3`
-- `data/transcripts/<videoId>.txt`
-- `data/analysis/<videoId>.json`
-
-If subtitles are available, you may also see downloaded `.vtt` files such as `data/transcripts/<videoId>.en.vtt`.
-
-For the example URL above, the expected outputs are:
-
-- `data/audio/5MK3SkNST-0.mp3`
-- `data/transcripts/5MK3SkNST-0.txt`
-- `data/analysis/5MK3SkNST-0.json`
-
-## Transcript Strategy
-
-The transcript pipeline is subtitle-first:
-
-1. Run:
-
-```sh
-yt-dlp --skip-download --write-sub --write-auto-sub <url>
-```
-
-2. If a subtitle `.vtt` file exists:
-   - parse it into plain text
-   - save it as `data/transcripts/<videoId>.txt`
-   - use it as the transcript
-
-3. If no usable subtitles exist:
-   - fall back to Whisper transcription
-
-Subtitle absence is not treated as a fatal error. The pipeline continues with Whisper.
-
-Only files for the active `videoId` are cleaned up or overwritten during a run.
-
-## Analysis Output Schema
-
-`data/analysis/<videoId>.json` must be valid JSON with this shape:
+`data/analysis/<videoId>.json` has this shape:
 
 ```json
 {
@@ -244,33 +257,22 @@ Only files for the active `videoId` are cleaned up or overwritten during a run.
 }
 ```
 
-Field meanings:
+## Validation And Tests
 
-- `id`: canonical YouTube video ID used for all related artifacts
-- `source_url`: original ingest URL
-- `summary`: model-generated summary
-- `tags`: array of topic labels
-- `key_takeaways`: array of concise takeaways
-
-The CLI validates the JSON before exiting successfully and checks that `id` and `source_url` match the current ingest context.
-
-## Agent Skills
-
-The `skill/` folder contains guidance documents for AI agents using the MCP server. They encode the decision logic, retry behaviour, error handling, and output formatting that an agent needs to use the tools effectively.
-
-- `skill/SKILL.md` — single video ingest
-- `skill/SKILL-batch-ingest.md` — batch ingest from playlists, channels, or URL lists
-
-## Development
-
-Typecheck the project:
+Type-check:
 
 ```sh
-npx tsc --noEmit
+npm run typecheck
 ```
 
-Run the pipeline:
+Validate registry and skill-manifest wiring:
 
 ```sh
-npx tsx src/ingest.ts '<youtube-url>'
+npm run validate
+```
+
+Run tests:
+
+```sh
+npm test
 ```

@@ -1,0 +1,37 @@
+{
+  "id": "dsmedia-batch-ingest",
+  "name": "DS.media Batch Ingest",
+  "description": "Batch ingest guidance for playlists, channels, and URL lists using shared MCP and CLI operations.",
+  "supportedTools": [
+    "parse_video_id",
+    "download_audio",
+    "fetch_subtitles",
+    "transcribe_audio",
+    "analyse_transcript",
+    "expand_playlist"
+  ],
+  "supportedCommands": [
+    "ingest_batch",
+    "parse_video_id",
+    "download_audio",
+    "fetch_subtitles",
+    "transcribe_audio",
+    "analyse_transcript",
+    "expand_playlist"
+  ],
+  "artifacts": [
+    "data/audio/<videoId>.mp3",
+    "data/transcripts/<videoId>.txt",
+    "data/analysis/<videoId>.json"
+  ],
+  "defaults": {
+    "llmProfile": "balanced",
+    "transcriptStrategy": "subtitle-first with Whisper fallback"
+  },
+  "portabilityTargets": [
+    "claude-desktop",
+    "codex",
+    "open-webui",
+    "generic-mcp-client"
+  ]
+}
