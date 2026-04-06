@@ -1,4 +1,5 @@
 import fs from "fs-extra";
+import { ensureDescription } from "./description.js";
 import { getDataDirs, type IngestContext } from "./runtime.js";
 import { resolveLlmConfig, type LlmConfig } from "./config.js";
 import { ensureOllamaReachable, generateOllamaResponse, resolveOllamaModel } from "./ollama.js";
@@ -14,6 +15,7 @@ export interface ModelAnalysis {
 export interface AnalysisResult extends ModelAnalysis {
   id: string;
   source_url: string;
+  description: string | null;
 }
 
 function noopLogger(): void {}
@@ -218,6 +220,7 @@ export async function analyzeTranscript(
       const analysis: AnalysisResult = {
         id: context.id,
         source_url: context.sourceUrl,
+        description: await ensureDescription(context),
         ...modelAnalysis,
       };
       await fs.writeJson(context.analysisPath, analysis, { spaces: 2 });

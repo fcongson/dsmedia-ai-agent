@@ -25,5 +25,6 @@ test("cli operations include canonical ingest commands", () => {
     "ingest_video",
     "parse_video_id",
     "transcribe_audio",
+    "write_video_summary",
   ]);
 });

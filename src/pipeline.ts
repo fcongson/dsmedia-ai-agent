@@ -1,7 +1,9 @@
 import path from "node:path";
 import fs from "fs-extra";
 import { analyzeTranscript, type AnalysisResult } from "./analyze.js";
+import { ensureDescription } from "./description.js";
 import { downloadVideo } from "./download.js";
+import { writeVideoSummary } from "./notes.js";
 import { expandPlaylist, type PlaylistEntry } from "./expand_playlist.js";
 import { createIngestContext, resolveExecutable, type IngestContext } from "./runtime.js";
 import { transcribeWithWhisper, tryDownloadSubtitles } from "./transcribe.js";
@@ -30,6 +32,7 @@ export interface IngestVideoResult {
   transcriptSource: "existing" | "subtitles" | "whisper";
   stateBeforeRun: IngestState;
   reusedExistingAnalysis: boolean;
+  notePath: string;
 }
 
 export interface BatchVideoResult {
@@ -39,6 +42,7 @@ export interface BatchVideoResult {
   success: boolean;
   transcriptSource?: "existing" | "subtitles" | "whisper";
   stateBeforeRun: IngestState;
+  notePath?: string;
   error?: string;
 }
 
@@ -60,6 +64,7 @@ async function assertAnalysisShape(value: unknown): Promise<AnalysisResult> {
   if (
     typeof candidate.id !== "string" ||
     typeof candidate.source_url !== "string" ||
+    !(typeof candidate.description === "string" || candidate.description === null) ||
     typeof candidate.summary !== "string" ||
     !Array.isArray(candidate.tags) ||
     !Array.isArray(candidate.key_takeaways)
@@ -113,7 +118,22 @@ export async function classifyVideo(url: string): Promise<VideoClassification> {
 }
 
 async function readExistingAnalysis(context: IngestContext): Promise<AnalysisResult> {
-  return assertAnalysisShape(await fs.readJson(context.analysisPath));
+  const rawAnalysis = await fs.readJson(context.analysisPath);
+  const candidate = rawAnalysis as Record<string, unknown>;
+  const description = typeof candidate.description === "string" || candidate.description === null
+    ? candidate.description
+    : await ensureDescription(context);
+
+  const analysis = await assertAnalysisShape({
+    ...candidate,
+    description,
+  });
+
+  if (candidate.description !== analysis.description) {
+    await fs.writeJson(context.analysisPath, analysis, { spaces: 2 });
+  }
+
+  return analysis;
 }
 
 async function readTranscript(context: IngestContext): Promise<string> {
@@ -124,56 +144,74 @@ async function readTranscript(context: IngestContext): Promise<string> {
   return transcript;
 }
 
+async function ensureTranscript(
+  context: IngestContext,
+  artifacts: VideoArtifacts,
+  log: ProgressLogger,
+): Promise<{ transcript: string; transcriptSource: "existing" | "subtitles" | "whisper" }> {
+  if (artifacts.transcriptExists) {
+    log(`Video ${context.id}: reusing existing transcript at ${context.transcriptPath}`);
+    return {
+      transcript: await readTranscript(context),
+      transcriptSource: "existing",
+    };
+  }
+
+  if (!artifacts.audioExists) {
+    log(`Video ${context.id}: downloading audio`);
+    await downloadVideo(context);
+  }
+
+  log(`Video ${context.id}: checking subtitles`);
+  const subtitleTranscript = await tryDownloadSubtitles(context);
+  if (subtitleTranscript) {
+    log(`Video ${context.id}: using subtitles`);
+    return {
+      transcript: subtitleTranscript,
+      transcriptSource: "subtitles",
+    };
+  }
+
+  log(`Video ${context.id}: transcribing audio with Whisper`);
+  return {
+    transcript: await transcribeWithWhisper(context),
+    transcriptSource: "whisper",
+  };
+}
+
 export async function ingestVideo(url: string, log: ProgressLogger = noopLogger): Promise<IngestVideoResult> {
   const { context, state, artifacts } = await classifyVideo(url);
   log(`Video ${context.id}: state ${state}`);
 
+  const transcriptResult = await ensureTranscript(context, artifacts, log);
+
   if (artifacts.analysisExists) {
     log(`Video ${context.id}: reusing existing analysis at ${context.analysisPath}`);
+    const analysis = await readExistingAnalysis(context);
+    const notePath = await writeVideoSummary(context, transcriptResult.transcript, analysis);
     return {
-      analysis: await readExistingAnalysis(context),
-      transcript: artifacts.transcriptExists ? await readTranscript(context) : "",
-      transcriptSource: artifacts.transcriptExists ? "existing" : "whisper",
+      analysis,
+      transcript: transcriptResult.transcript,
+      transcriptSource: transcriptResult.transcriptSource,
       stateBeforeRun: state,
       reusedExistingAnalysis: true,
+      notePath,
     };
   }
 
-  let transcriptSource: "existing" | "subtitles" | "whisper" = "existing";
-  let transcript: string;
-
-  if (artifacts.transcriptExists) {
-    log(`Video ${context.id}: reusing existing transcript at ${context.transcriptPath}`);
-    transcript = await readTranscript(context);
-  } else {
-    if (!artifacts.audioExists) {
-      log(`Video ${context.id}: downloading audio`);
-      await downloadVideo(context);
-    }
-
-    log(`Video ${context.id}: checking subtitles`);
-    const subtitleTranscript = await tryDownloadSubtitles(context);
-    if (subtitleTranscript) {
-      transcript = subtitleTranscript;
-      transcriptSource = "subtitles";
-      log(`Video ${context.id}: using subtitles`);
-    } else {
-      log(`Video ${context.id}: transcribing audio with Whisper`);
-      transcript = await transcribeWithWhisper(context);
-      transcriptSource = "whisper";
-    }
-  }
-
   log(`Video ${context.id}: generating analysis with Ollama`);
-  const analysis = await analyzeTranscript(context, transcript, undefined, log);
+  const analysis = await analyzeTranscript(context, transcriptResult.transcript, undefined, log);
   log(`Video ${context.id}: wrote analysis to ${context.analysisPath}`);
+  const notePath = await writeVideoSummary(context, transcriptResult.transcript, analysis);
+  log(`Video ${context.id}: wrote note to ${notePath}`);
 
   return {
     analysis,
-    transcript,
-    transcriptSource,
+    transcript: transcriptResult.transcript,
+    transcriptSource: transcriptResult.transcriptSource,
     stateBeforeRun: state,
     reusedExistingAnalysis: false,
+    notePath,
   };
 }
 
@@ -273,6 +311,7 @@ export async function ingestBatch(input: string, log: ProgressLogger = noopLogge
         id: entry.id,
         title: entry.title,
         success: true,
+        notePath: result.notePath,
         transcriptSource: result.transcriptSource,
         stateBeforeRun: initial.state,
       });

@@ -6,6 +6,7 @@
     "parse_video_id",
     "download_audio",
     "fetch_description",
+    "write_video_summary",
     "fetch_subtitles",
     "transcribe_audio",
     "analyse_transcript"
@@ -15,6 +16,7 @@
     "parse_video_id",
     "download_audio",
     "fetch_description",
+    "write_video_summary",
     "fetch_subtitles",
     "transcribe_audio",
     "analyse_transcript"
@@ -22,6 +24,8 @@
   "artifacts": [
     "data/audio/<videoId>.mp3",
     "data/descriptions/<videoId>.txt",
+    "data/metadata/<videoId>.json",
+    "data/notes/<videoId>.md",
     "data/transcripts/<videoId>.txt",
     "data/transcripts/<videoId>*.vtt",
     "data/analysis/<videoId>.json"

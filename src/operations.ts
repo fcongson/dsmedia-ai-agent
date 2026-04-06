@@ -65,6 +65,9 @@ export const OPERATIONS: OperationDefinition[] = [
         id: context.id,
         sourceUrl: context.sourceUrl,
         audioPath: context.audioPath,
+        descriptionPath: context.descriptionPath,
+        metadataPath: context.metadataPath,
+        notePath: context.notePath,
         transcriptPath: context.transcriptPath,
         analysisPath: context.analysisPath,
       };
@@ -121,6 +124,26 @@ export const OPERATIONS: OperationDefinition[] = [
       usage: "node --import tsx src/cli.ts fetch_subtitles <youtube-url>",
       requiredDependencies: ["yt-dlp"],
       parseArgs: async (args: string[]) => ({ url: requireArg(args[0], "url", "node --import tsx src/cli.ts fetch_subtitles <youtube-url>") }),
+    },
+  },
+  {
+    id: "write_video_summary",
+    description:
+      "Generate a markdown video summary note at data/notes/<videoId>.md using cached metadata, transcript, description, and analysis artifacts.",
+    inputSchema: TOOL_INPUT_URL,
+    surfaces: ["mcp", "cli"],
+    handler: async (input: { url: string }) => {
+      const result = await ingestVideo(input.url);
+      return { notePath: result.notePath };
+    },
+    cli: {
+      usage: "node --import tsx src/cli.ts write_video_summary <youtube-url>",
+      requiredDependencies: ["yt-dlp", "whisper", "ollama"],
+      parseArgs: async (args: string[]) => ({ url: requireArg(args[0], "url", "node --import tsx src/cli.ts write_video_summary <youtube-url>") }),
+      run: async (input: { url: string }, log) => {
+        const result = await ingestVideo(input.url, log);
+        return { notePath: result.notePath };
+      },
     },
   },
   {

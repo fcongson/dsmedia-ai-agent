@@ -30,6 +30,8 @@ Artifact paths are stable and source-linked:
 
 - `data/audio/<videoId>.mp3`
 - `data/descriptions/<videoId>.txt`
+- `data/metadata/<videoId>.json`
+- `data/notes/<videoId>.md`
 - `data/transcripts/<videoId>.txt`
 - `data/transcripts/<videoId>*.vtt`
 - `data/analysis/<videoId>.json`
@@ -162,6 +164,7 @@ npm run fetch_description -- '<youtube-url>'
 npm run fetch_subtitles -- '<youtube-url>'
 npm run transcribe_audio -- '<youtube-url>'
 npm run analyse_transcript -- '<youtube-url>' 'data/transcripts/<videoId>.txt'
+npm run write_video_summary -- '<youtube-url>'
 npm run expand_playlist -- '<playlist-or-channel-url>'
 ```
 
@@ -170,9 +173,10 @@ Expected behavior by step:
 - `parse_video_id` returns the canonical video id plus expected artifact paths.
 - `download_audio` writes `data/audio/<videoId>.mp3`.
 - `fetch_description` writes `data/descriptions/<videoId>.txt` when a description is available.
+- `write_video_summary` writes `data/notes/<videoId>.md`, reusing or generating any missing transcript, analysis, description, and metadata artifacts as needed.
 - `fetch_subtitles` writes `data/transcripts/<videoId>.txt` and keeps one preferred English `.vtt` file when subtitles are available.
 - `transcribe_audio` produces `data/transcripts/<videoId>.txt`, using subtitles first and Whisper as fallback.
-- `analyse_transcript` reads transcript text from the file path you pass and writes `data/analysis/<videoId>.json`.
+- `analyse_transcript` reads transcript text from the file path you pass and writes `data/analysis/<videoId>.json`, including the cached YouTube description for later reference.
 - `expand_playlist` returns a flat list of video ids, URLs, and titles.
 
 ## MCP
@@ -188,6 +192,7 @@ The server communicates over stdio and exposes these tools from the shared regis
 - `parse_video_id`
 - `download_audio`
 - `fetch_description`
+- `write_video_summary`
 - `fetch_subtitles`
 - `transcribe_audio`
 - `analyse_transcript`
@@ -238,6 +243,7 @@ The `skill/` directory now contains both human-readable guidance and machine-rea
 - `skill/SKILL-batch-ingest.md`
 - `skill/dsmedia-ai-agent.manifest.json`
 - `skill/dsmedia-batch-ingest.manifest.json`
+- `formats/video-summary.md`
 
 Portability is handled in layers:
 
@@ -255,6 +261,7 @@ This means Claude and other AI tools can share the same runtime workflow even if
 {
   "id": "string",
   "source_url": "string",
+  "description": "string | null",
   "summary": "string",
   "tags": ["string"],
   "key_takeaways": ["string"]
