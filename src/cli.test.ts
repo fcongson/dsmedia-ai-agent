@@ -16,6 +16,17 @@ test("parseCliInvocation parses url-only commands", async () => {
   assert.deepEqual(invocation.requiredDependencies, []);
 });
 
+test("parseCliInvocation parses fetch_description", async () => {
+  const invocation = await parseCliInvocation([
+    "fetch_description",
+    "https://www.youtube.com/watch?v=abc123def45",
+  ]);
+
+  assert.equal(invocation.command, "fetch_description");
+  assert.deepEqual(invocation.input, { url: "https://www.youtube.com/watch?v=abc123def45" });
+  assert.deepEqual(invocation.requiredDependencies, ["yt-dlp"]);
+});
+
 test("parseCliInvocation loads transcript content from file for analyse_transcript", async () => {
   const transcriptPath = path.join(os.tmpdir(), `dsmedia-cli-test-${Date.now()}.txt`);
   await fs.writeFile(transcriptPath, "hello transcript\n", "utf8");

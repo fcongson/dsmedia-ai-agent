@@ -10,6 +10,7 @@
     "ingest_batch": "node --import tsx src/cli.ts ingest_batch",
     "parse_video_id": "node --import tsx src/cli.ts parse_video_id",
     "download_audio": "node --import tsx src/cli.ts download_audio",
+    "fetch_description": "node --import tsx src/cli.ts fetch_description",
     "fetch_subtitles": "node --import tsx src/cli.ts fetch_subtitles",
     "transcribe_audio": "node --import tsx src/cli.ts transcribe_audio",
     "analyse_transcript": "node --import tsx src/cli.ts analyse_transcript",

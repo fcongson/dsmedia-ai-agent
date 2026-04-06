@@ -22,6 +22,7 @@ All single-video tools still apply per item:
 
 - `parse_video_id`
 - `download_audio`
+- `fetch_description`
 - `fetch_subtitles`
 - `transcribe_audio`
 - `analyse_transcript`
@@ -37,6 +38,7 @@ Supporting step commands:
 ```sh
 npm run parse_video_id -- '<youtube-url>'
 npm run download_audio -- '<youtube-url>'
+npm run fetch_description -- '<youtube-url>'
 npm run fetch_subtitles -- '<youtube-url>'
 npm run transcribe_audio -- '<youtube-url>'
 npm run analyse_transcript -- '<youtube-url>' 'data/transcripts/<videoId>.txt'

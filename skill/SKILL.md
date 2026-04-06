@@ -24,6 +24,7 @@ The pipeline uses a subtitle-first transcript strategy and writes stable artifac
 |---|---|
 | `parse_video_id` | Parses a YouTube URL into a video ID and expected artifact paths |
 | `download_audio` | Downloads the audio track as an MP3 via yt-dlp |
+| `fetch_description` | Fetches the full YouTube video description via yt-dlp |
 | `fetch_subtitles` | Attempts to download YouTube subtitles or auto-captions |
 | `transcribe_audio` | Transcribes audio using Whisper |
 | `analyse_transcript` | Sends a transcript to Ollama and writes structured JSON analysis |
@@ -39,6 +40,7 @@ Each MCP tool is also directly testable from CLI:
 ```sh
 npm run parse_video_id -- '<youtube-url>'
 npm run download_audio -- '<youtube-url>'
+npm run fetch_description -- '<youtube-url>'
 npm run fetch_subtitles -- '<youtube-url>'
 npm run transcribe_audio -- '<youtube-url>'
 npm run analyse_transcript -- '<youtube-url>' 'data/transcripts/<videoId>.txt'

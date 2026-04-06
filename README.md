@@ -29,6 +29,7 @@ For long transcripts, the analysis step now summarizes the transcript in chunks 
 Artifact paths are stable and source-linked:
 
 - `data/audio/<videoId>.mp3`
+- `data/descriptions/<videoId>.txt`
 - `data/transcripts/<videoId>.txt`
 - `data/transcripts/<videoId>*.vtt`
 - `data/analysis/<videoId>.json`
@@ -157,6 +158,7 @@ Each MCP tool can also be tested from the command line with the same canonical n
 ```sh
 npm run parse_video_id -- '<youtube-url>'
 npm run download_audio -- '<youtube-url>'
+npm run fetch_description -- '<youtube-url>'
 npm run fetch_subtitles -- '<youtube-url>'
 npm run transcribe_audio -- '<youtube-url>'
 npm run analyse_transcript -- '<youtube-url>' 'data/transcripts/<videoId>.txt'
@@ -167,6 +169,7 @@ Expected behavior by step:
 
 - `parse_video_id` returns the canonical video id plus expected artifact paths.
 - `download_audio` writes `data/audio/<videoId>.mp3`.
+- `fetch_description` writes `data/descriptions/<videoId>.txt` when a description is available.
 - `fetch_subtitles` writes `data/transcripts/<videoId>.txt` and keeps one preferred English `.vtt` file when subtitles are available.
 - `transcribe_audio` produces `data/transcripts/<videoId>.txt`, using subtitles first and Whisper as fallback.
 - `analyse_transcript` reads transcript text from the file path you pass and writes `data/analysis/<videoId>.json`.
@@ -184,6 +187,7 @@ The server communicates over stdio and exposes these tools from the shared regis
 
 - `parse_video_id`
 - `download_audio`
+- `fetch_description`
 - `fetch_subtitles`
 - `transcribe_audio`
 - `analyse_transcript`

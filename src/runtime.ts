@@ -11,6 +11,7 @@ export const ROOT_DIR = path.resolve(fileURLToPath(import.meta.url), "..", "..")
 export function getDataDirs() {
   return {
     AUDIO_DIR: path.join(ROOT_DIR, "data", "audio"),
+    DESCRIPTIONS_DIR: path.join(ROOT_DIR, "data", "descriptions"),
     TRANSCRIPTS_DIR: path.join(ROOT_DIR, "data", "transcripts"),
     ANALYSIS_DIR: path.join(ROOT_DIR, "data", "analysis"),
   };
@@ -20,6 +21,7 @@ export interface IngestContext {
   id: string;
   sourceUrl: string;
   audioPath: string;
+  descriptionPath: string;
   transcriptPath: string;
   analysisPath: string;
   transcriptDir: string;
@@ -78,12 +80,13 @@ export function createIngestContext(sourceUrl: string): IngestContext {
     throw new Error("Unable to determine YouTube video ID from URL.");
   }
 
-  const { AUDIO_DIR, TRANSCRIPTS_DIR, ANALYSIS_DIR } = getDataDirs();
+  const { AUDIO_DIR, DESCRIPTIONS_DIR, TRANSCRIPTS_DIR, ANALYSIS_DIR } = getDataDirs();
 
   return {
     id,
     sourceUrl,
     audioPath: path.resolve(AUDIO_DIR, `${id}.mp3`),
+    descriptionPath: path.resolve(DESCRIPTIONS_DIR, `${id}.txt`),
     transcriptPath: path.resolve(TRANSCRIPTS_DIR, `${id}.txt`),
     analysisPath: path.resolve(ANALYSIS_DIR, `${id}.json`),
     transcriptDir: TRANSCRIPTS_DIR,

@@ -1,5 +1,6 @@
 import fs from "fs-extra";
 import { analyzeTranscript } from "./analyze.js";
+import { fetchDescription } from "./description.js";
 import { downloadVideo } from "./download.js";
 import { expandPlaylist } from "./expand_playlist.js";
 import { ingestBatch, ingestVideo, type DependencyName, type ProgressLogger } from "./pipeline.js";
@@ -87,6 +88,22 @@ export const OPERATIONS: OperationDefinition[] = [
       usage: "node --import tsx src/cli.ts download_audio <youtube-url>",
       requiredDependencies: ["yt-dlp"],
       parseArgs: async (args: string[]) => ({ url: requireArg(args[0], "url", "node --import tsx src/cli.ts download_audio <youtube-url>") }),
+    },
+  },
+  {
+    id: "fetch_description",
+    description:
+      "Fetch the full description of a YouTube video using yt-dlp. The description often contains chapter timestamps, speaker bios, and resource links. Returns null if unavailable.",
+    inputSchema: TOOL_INPUT_URL,
+    surfaces: ["mcp", "cli"],
+    handler: async (input: { url: string }) => {
+      const context = createIngestContext(input.url);
+      return { description: await fetchDescription(context) };
+    },
+    cli: {
+      usage: "node --import tsx src/cli.ts fetch_description <youtube-url>",
+      requiredDependencies: ["yt-dlp"],
+      parseArgs: async (args: string[]) => ({ url: requireArg(args[0], "url", "node --import tsx src/cli.ts fetch_description <youtube-url>") }),
     },
   },
   {

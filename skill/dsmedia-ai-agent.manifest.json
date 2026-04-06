@@ -5,6 +5,7 @@
   "supportedTools": [
     "parse_video_id",
     "download_audio",
+    "fetch_description",
     "fetch_subtitles",
     "transcribe_audio",
     "analyse_transcript"
@@ -13,12 +14,14 @@
     "ingest_video",
     "parse_video_id",
     "download_audio",
+    "fetch_description",
     "fetch_subtitles",
     "transcribe_audio",
     "analyse_transcript"
   ],
   "artifacts": [
     "data/audio/<videoId>.mp3",
+    "data/descriptions/<videoId>.txt",
     "data/transcripts/<videoId>.txt",
     "data/transcripts/<videoId>*.vtt",
     "data/analysis/<videoId>.json"
