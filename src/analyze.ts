@@ -65,7 +65,7 @@ function isModelAnalysis(value: unknown): value is ModelAnalysis {
   );
 }
 
-function extractJsonBlock(raw: string): string {
+export function extractJsonBlock(raw: string): string {
   const trimmed = raw.trim();
   const fenceMatch = trimmed.match(/```(?:json)?\s*([\s\S]*?)\s*```/u);
   if (fenceMatch) {

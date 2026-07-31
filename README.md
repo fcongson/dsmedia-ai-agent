@@ -179,6 +179,57 @@ Expected behavior by step:
 - `analyse_transcript` reads transcript text from the file path you pass and writes `data/analysis/<videoId>.json`, including the cached YouTube description for later reference.
 - `expand_playlist` returns a flat list of video ids, URLs, and titles.
 
+## Retagging designsystems.media against its closed taxonomy
+
+designsystems.media's content schema (`src/content.config.ts`) enforces a closed
+taxonomy for `series`/`topics`/`tools`/`systems` (defined in
+`src/lib/content-domain/taxonomy.ts`, see ADR 0012/0014), plus a freeform
+`tags` field for anything that doesn't fit, and a controlled `speakers` list
+(`frontmatter.json`). Two commands here bridge this repo's ingest pipeline
+into that site so existing untagged entries can be classified in bulk instead
+of by hand:
+
+- `classify_taxonomy` - classifies a single video against the site's closed
+  taxonomy (reusing or generating its cached analysis first) and returns the
+  result. Doesn't write to any site file - useful for previewing what a
+  video would get tagged before running the batch command.
+- `retag_site_media` - scans designsystems.media's `media` (or `podcast`)
+  collection for entries missing all of `series`/`topics`/`tools`/`systems`,
+  runs each through the ingest + classification pipeline, and writes the
+  results back into that entry's frontmatter. Entries missing `speakers` also
+  get a best-effort speaker proposal, but only written if it confidently
+  matches an existing name in `frontmatter.json`'s speaker list - anything
+  else is left for manual review rather than guessed into a controlled field.
+  **Dry-run by default** (add `--apply` to actually write); every run also
+  writes a JSON report to `data/retag-reports/`.
+
+By default the site is expected to be a sibling checkout at
+`../designsystems.media`. Override with `--site-path <path>` or the
+`DSMEDIA_SITE_DIR` environment variable.
+
+```sh
+# Preview one video's taxonomy classification without touching any file
+npm run classify_taxonomy -- 'https://www.youtube.com/watch?v=5sEQzF7tgmk'
+
+# Dry run over the first 5 untagged media entries - prints what would change
+npm run retag_site_media -- --limit 5
+
+# Test against a single entry before running the full batch
+npm run retag_site_media -- --only 10-design-system-consulting --apply
+
+# Actually retag every untagged media entry
+npm run retag_site_media -- --apply
+
+# Same, but for the podcast collection, against a non-sibling checkout
+npm run retag_site_media -- --kind podcast --site-path /path/to/designsystems.media --apply
+```
+
+Values the model proposes that don't verbatim match a closed-list entry are
+never silently dropped - they fall through into that entry's `tags` field
+instead, and are also listed under `droppedValues` in the report so you can
+spot recurring near-misses that might be worth adding to the taxonomy for
+real (per ADR 0012's "when nothing fits" guidance).
+
 ## MCP
 
 Start the MCP server:
@@ -197,6 +248,10 @@ The server communicates over stdio and exposes these tools from the shared regis
 - `transcribe_audio`
 - `analyse_transcript`
 - `expand_playlist`
+- `classify_taxonomy`
+
+`retag_site_media` is CLI-only (it's a long-running batch job over many
+videos, same reasoning as `ingest_batch`).
 
 ### Test With MCP Inspector
 

@@ -17,6 +17,7 @@ test("cli operations include canonical ingest commands", () => {
   const cliIds = getOperationsForSurface("cli").map((operation) => operation.id);
   assert.deepEqual(cliIds.sort(), [
     "analyse_transcript",
+    "classify_taxonomy",
     "download_audio",
     "expand_playlist",
     "fetch_description",
@@ -24,6 +25,7 @@ test("cli operations include canonical ingest commands", () => {
     "ingest_batch",
     "ingest_video",
     "parse_video_id",
+    "retag_site_media",
     "transcribe_audio",
     "write_video_summary",
   ]);
