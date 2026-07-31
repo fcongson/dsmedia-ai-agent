@@ -1,6 +1,11 @@
 # Dependency directories
 node_modules/
 
+# Pipeline cache/output - regenerable from the source YouTube video, or
+# derived from a specific model/prompt version (not a stable historical
+# record). See README's "Output Schema" / artifact paths section.
+data/
+
 # dotenv environment variable files
 .env
 .env.*
