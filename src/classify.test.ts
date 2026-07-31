@@ -29,6 +29,18 @@ test("buildTaxonomyPrompt embeds every closed-list value so the model can only p
   }
 });
 
+test("buildTaxonomyPrompt warns against selecting a series from a mere name mention", () => {
+  // Regression case: a real applied run tagged series:"Clarity" onto an
+  // interview episode because the guest's bio mentioned founding something
+  // also called Clarity, unrelated to the site's Clarity conference.
+  const prompt = buildTaxonomyPrompt(
+    { title: "t", description: "d", summary: "s", keyTakeaways: [], freeformTags: [], existingTags: [] },
+    TAXONOMY,
+  );
+  assert.ok(/mentioned/iu.test(prompt));
+  assert.ok(/NOT enough to select it/u.test(prompt));
+});
+
 test("buildTaxonomyPrompt states an explicit numeric cap for every field", () => {
   const prompt = buildTaxonomyPrompt(
     { title: "t", description: "d", summary: "s", keyTakeaways: [], freeformTags: [], existingTags: [] },

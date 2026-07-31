@@ -58,7 +58,8 @@ export function buildTaxonomyPrompt(input: ClassificationInput, taxonomy: SiteTa
 Video context:
 ${context}
 
-${formatList("Series (the recurring show/conference this episode belongs to)", taxonomy.series, MAX_SELECTIONS.series)}
+${formatList("Series (the recurring show/conference this episode was recorded AS PART OF)", taxonomy.series, MAX_SELECTIONS.series)}
+A series name merely being MENTIONED - e.g. a guest who founded, works at, or is otherwise associated with something that happens to share a name with an item on this list - is NOT enough to select it. Only select a series if the video itself is presented as an episode/session/talk of that show or conference (for example, a real match usually shows up as a title like "<Speaker>: <Talk Title> - <Series> <Year>", or the description explicitly says it was recorded at or presented at that event). If you're only inferring a series from a passing mention of a person or thing with a similar name, leave series empty.
 
 ${formatList("Topics (subject matter that is genuinely central to this video)", taxonomy.topics, MAX_SELECTIONS.topics)}
 
