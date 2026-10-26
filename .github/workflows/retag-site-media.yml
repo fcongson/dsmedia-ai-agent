@@ -1,0 +1,137 @@
+name: Retag site media
+
+on:
+  workflow_dispatch:
+    inputs:
+      kind:
+        description: "Content collection to process"
+        required: true
+        type: choice
+        options:
+          - media
+          - podcast
+        default: media
+      limit:
+        description: "Max number of untagged entries to process"
+        required: true
+        type: string
+        default: "10"
+      only:
+        description: "Only process entries whose slug or videoUrl contains this substring (optional)"
+        required: false
+        type: string
+      apply:
+        description: "Write changes and open a PR on designsystems.media (unchecked = dry run, report only)"
+        required: true
+        type: boolean
+        default: false
+      site_ref:
+        description: "Branch of designsystems.media to check out"
+        required: true
+        type: string
+        default: main
+      profile:
+        description: "Ollama model profile (see dsmedia.config.json)"
+        required: true
+        type: choice
+        options:
+          - fast
+          - balanced
+          - quality
+        default: fast
+
+jobs:
+  retag:
+    runs-on: ubuntu-latest
+    timeout-minutes: 120
+    steps:
+      - name: Checkout dsmedia-ai-agent
+        uses: actions/checkout@v4
+        with:
+          path: agent
+
+      - name: Checkout designsystems.media
+        uses: actions/checkout@v4
+        with:
+          repository: ${{ vars.SITE_REPO || 'DesignSystemsCollective/designsystems.media' }}
+          ref: ${{ inputs.site_ref }}
+          token: ${{ secrets.SITE_REPO_TOKEN }}
+          path: site
+
+      - name: Set up Node
+        uses: actions/setup-node@v4
+        with:
+          node-version: 20
+          cache: npm
+          cache-dependency-path: agent/package-lock.json
+
+      - name: Install project dependencies
+        working-directory: agent
+        run: npm ci
+
+      - name: Install ffmpeg, yt-dlp, whisper
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y ffmpeg
+          pip install --upgrade yt-dlp openai-whisper
+
+      - name: Install Ollama
+        run: curl -fsSL https://ollama.com/install.sh | sh
+
+      - name: Start Ollama and pull model
+        env:
+          DSMEDIA_LLM_PROFILE: ${{ inputs.profile }}
+        run: |
+          ollama serve &
+          for i in $(seq 1 30); do
+            curl -sf http://localhost:11434/ && break
+            sleep 1
+          done
+          case "$DSMEDIA_LLM_PROFILE" in
+            fast) model=gemma3:4b ;;
+            balanced) model=llama3.1:8b ;;
+            quality) model=qwen3:8b ;;
+          esac
+          ollama pull "$model"
+
+      - name: Run retag_site_media
+        id: retag
+        working-directory: agent
+        env:
+          DSMEDIA_LLM_PROFILE: ${{ inputs.profile }}
+        run: |
+          args=(--site-path "$GITHUB_WORKSPACE/site" --kind "${{ inputs.kind }}" --limit "${{ inputs.limit }}")
+          if [ -n "${{ inputs.only }}" ]; then
+            args+=(--only "${{ inputs.only }}")
+          fi
+          if [ "${{ inputs.apply }}" = "true" ]; then
+            args+=(--apply)
+          fi
+          npm run retag_site_media -- "${args[@]}"
+
+      - name: Upload report
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: retag-report
+          path: agent/data/retag-reports/
+          retention-days: 30
+
+      - name: Open PR on designsystems.media
+        if: inputs.apply == 'true'
+        uses: peter-evans/create-pull-request@v6
+        with:
+          token: ${{ secrets.SITE_REPO_TOKEN }}
+          path: site
+          commit-message: "chore: retag ${{ inputs.kind }} entries against closed taxonomy"
+          title: "Retag ${{ inputs.kind }} entries against closed taxonomy"
+          body: |
+            Automated taxonomy retagging run via the dsmedia-ai-agent `retag_site_media` workflow.
+
+            - kind: `${{ inputs.kind }}`
+            - limit: `${{ inputs.limit }}`
+            - only: `${{ inputs.only }}`
+
+            See the `retag-report` workflow artifact for the full per-entry report, including any `droppedValues` worth reviewing for the taxonomy.
+          branch: retag/${{ inputs.kind }}-${{ github.run_id }}
+          base: ${{ inputs.site_ref }}

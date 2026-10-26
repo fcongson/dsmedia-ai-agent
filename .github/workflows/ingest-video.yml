@@ -1,0 +1,86 @@
+name: Ingest video
+
+on:
+  workflow_dispatch:
+    inputs:
+      input:
+        description: "YouTube video/playlist/channel URL"
+        required: true
+        type: string
+      mode:
+        description: "Ingest a single video or expand+batch-ingest a playlist/channel"
+        required: true
+        type: choice
+        options:
+          - single
+          - batch
+        default: single
+      profile:
+        description: "Ollama model profile (see dsmedia.config.json)"
+        required: true
+        type: choice
+        options:
+          - fast
+          - balanced
+          - quality
+        default: fast
+
+jobs:
+  ingest:
+    runs-on: ubuntu-latest
+    timeout-minutes: 90
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Set up Node
+        uses: actions/setup-node@v4
+        with:
+          node-version: 20
+          cache: npm
+
+      - name: Install project dependencies
+        run: npm ci
+
+      - name: Install ffmpeg, yt-dlp, whisper
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y ffmpeg
+          pip install --upgrade yt-dlp openai-whisper
+
+      - name: Install Ollama
+        run: curl -fsSL https://ollama.com/install.sh | sh
+
+      - name: Start Ollama and pull model
+        env:
+          DSMEDIA_LLM_PROFILE: ${{ inputs.profile }}
+        run: |
+          ollama serve &
+          for i in $(seq 1 30); do
+            curl -sf http://localhost:11434/ && break
+            sleep 1
+          done
+          case "$DSMEDIA_LLM_PROFILE" in
+            fast) model=gemma3:4b ;;
+            balanced) model=llama3.1:8b ;;
+            quality) model=qwen3:8b ;;
+          esac
+          ollama pull "$model"
+
+      - name: Run ingest
+        env:
+          DSMEDIA_LLM_PROFILE: ${{ inputs.profile }}
+        run: |
+          if [ "${{ inputs.mode }}" = "batch" ]; then
+            npm run ingest_batch -- "${{ inputs.input }}"
+          else
+            npm run ingest_video -- "${{ inputs.input }}"
+          fi
+
+      - name: Upload artifacts
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: ingest-output
+          path: data/
+          retention-days: 14
