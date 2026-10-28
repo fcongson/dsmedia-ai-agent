@@ -20,6 +20,12 @@ export interface ResolveSitePathOptions {
 // for anyone whose checkout layout differs.
 const DEFAULT_SITE_DIR_NAME = "designsystems.media";
 
+// Hardcoded for the same reason as DEFAULT_SITE_DIR_NAME above: this repo is
+// purpose-built for this one site, not a generic multi-site tool. Used to
+// build absolute links for site-sourced search.ts entries that don't have
+// their own ingested YouTube URL (see astro.config.mjs's `site` field).
+export const SITE_BASE_URL = "https://designsystems.media";
+
 export function resolveSitePath(options: ResolveSitePathOptions = {}): string {
   const env = options.env ?? process.env;
   const candidate = options.override ?? env.DSMEDIA_SITE_DIR;

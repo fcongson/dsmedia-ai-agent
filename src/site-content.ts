@@ -1,6 +1,6 @@
 import path from "node:path";
 import fs from "fs-extra";
-import { getTopLevelScalar, hasTopLevelKey, parseExistingArrayValue, splitFrontMatter } from "./frontmatter-merge.js";
+import { getTopLevelArray, getTopLevelScalar, hasTopLevelKey, splitFrontMatter } from "./frontmatter-merge.js";
 import { assertSitePath } from "./site.js";
 
 export type ContentKind = "media" | "podcast";
@@ -16,6 +16,18 @@ export interface SiteEntry {
   hasTaxonomy: boolean;
   hasSpeakers: boolean;
   existingTags: string[];
+  /** Populated regardless of hasTaxonomy/hasSpeakers, for consumers (like
+   * find_content's site-fallback search source) that want the actual
+   * values rather than just presence - e.g. an entry that's partially
+   * tagged still has real series/topics to search on. */
+  series: string[];
+  topics: string[];
+  tools: string[];
+  systems: string[];
+  speakers: string[];
+  /** Raw markdown body (the entry's description/notes), truncated - good
+   * enough as fallback search text for an entry with no ingest analysis. */
+  bodyExcerpt: string;
 }
 
 function contentRoot(sitePath: string, kind: ContentKind): string {
@@ -47,19 +59,7 @@ async function readSiteEntry(filePath: string, kind: ContentKind, sitePath: stri
 
   const hasTaxonomy = TAXONOMY_KEYS.some((key) => hasTopLevelKey(split.frontMatter, key, { requireNonEmpty: true }));
   const hasSpeakers = hasTopLevelKey(split.frontMatter, "speakers", { requireNonEmpty: true });
-  const lines = split.frontMatter.split(/\r?\n/u);
-  const tagsRangeStart = lines.findIndex((line) => /^tags:/u.test(line));
-  let existingTags: string[] = [];
-  if (tagsRangeStart >= 0) {
-    let end = lines.length;
-    for (let i = tagsRangeStart + 1; i < lines.length; i += 1) {
-      if (/^[A-Za-z_][A-Za-z0-9_-]*:/u.test(lines[i])) {
-        end = i;
-        break;
-      }
-    }
-    existingTags = parseExistingArrayValue(lines, { key: "tags", start: tagsRangeStart, end });
-  }
+  const existingTags = getTopLevelArray(split.frontMatter, "tags");
 
   return {
     filePath,
@@ -70,6 +70,12 @@ async function readSiteEntry(filePath: string, kind: ContentKind, sitePath: stri
     hasTaxonomy,
     hasSpeakers,
     existingTags,
+    series: getTopLevelArray(split.frontMatter, "series"),
+    topics: getTopLevelArray(split.frontMatter, "topics"),
+    tools: getTopLevelArray(split.frontMatter, "tools"),
+    systems: getTopLevelArray(split.frontMatter, "systems"),
+    speakers: getTopLevelArray(split.frontMatter, "speakers"),
+    bodyExcerpt: split.body.trim().slice(0, 1500),
   };
 }
 

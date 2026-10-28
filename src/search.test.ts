@@ -3,12 +3,45 @@ import assert from "node:assert/strict";
 import os from "node:os";
 import path from "node:path";
 import fs from "fs-extra";
-import { buildAnswerPrompt, cosineSimilarity, embeddingText, findContent, loadSearchCorpus, type SearchCorpusEntry } from "./search.js";
+import {
+  buildAnswerPrompt,
+  cosineSimilarity,
+  embeddingText,
+  findContent,
+  loadSearchCorpus,
+  loadSiteFallbackEntries,
+  type SearchCorpusEntry,
+} from "./search.js";
 import type { LlmConfig } from "./config.js";
+
+async function makeFakeSite(): Promise<string> {
+  const sitePath = await fs.mkdtemp(path.join(os.tmpdir(), "dsmedia-site-"));
+  await fs.outputFile(path.join(sitePath, "src", "content.config.ts"), "export const collections = {};\n");
+
+  await fs.outputFile(
+    path.join(sitePath, "src", "content", "media", "tagged-talk", "index.mdx"),
+    `---\ntitle: "A Tagged Talk"\nvideoUrl: "https://www.youtube.com/watch?v=tagged111"\nlocalImages: true\ntags: ["Misc"]\nseries: ["Converge"]\ntopics: ["Accessibility"]\ndraft: false\n---\n\nBody text about the talk.\n`,
+  );
+
+  // A slug with a literal "/" (seen in real podcast data, e.g. episode
+  // titles like "... w/ So-and-so") - must not break the embeddings cache.
+  await fs.outputFile(
+    path.join(sitePath, "src", "content", "podcast", "interview-w", "-guest-name", "index.mdx"),
+    `---\ntitle: "Interview w/ Guest Name"\nepisodeUrl: "https://podbean.example/episode.mp3"\nlocalImages: true\ntags: []\nspeakers: ["Guest Name"]\ndraft: false\n---\n\nPodcast notes.\n`,
+  );
+
+  return sitePath;
+}
 
 async function makeTempDir(prefix: string): Promise<string> {
   return fs.mkdtemp(path.join(os.tmpdir(), prefix));
 }
+
+// findContent defaults to a sibling designsystems.media checkout for its
+// site-frontmatter fallback source, which really exists on a dev machine
+// with both repos checked out - point every test at a path that can't
+// resolve to one, so these tests only ever see their own temp corpus.
+const NO_SITE_PATH = path.join(os.tmpdir(), "dsmedia-no-such-site-checkout");
 
 test("cosineSimilarity returns 1 for identical vectors and 0 for orthogonal vectors", () => {
   assert.equal(cosineSimilarity([1, 2, 3], [1, 2, 3]), 1);
@@ -96,6 +129,82 @@ test("loadSearchCorpus returns an empty array when the analysis directory doesn'
   assert.deepEqual(corpus, []);
 });
 
+test("loadSiteFallbackEntries returns an empty array instead of throwing when the site checkout isn't found", async () => {
+  const entries = await loadSiteFallbackEntries([], { sitePath: NO_SITE_PATH });
+  assert.deepEqual(entries, []);
+});
+
+test("loadSiteFallbackEntries builds entries from site frontmatter, merging taxonomy into tags, and sanitizes a slug containing '/' for its id", async () => {
+  const sitePath = await makeFakeSite();
+  try {
+    const entries = await loadSiteFallbackEntries([], { sitePath });
+    assert.equal(entries.length, 2);
+
+    const media = entries.find((entry) => entry.id === "media:tagged-talk");
+    assert.ok(media);
+    assert.equal(media?.title, "A Tagged Talk");
+    assert.equal(media?.sourceUrl, "https://designsystems.media/video/tagged-talk/");
+    assert.ok(media?.tags.includes("Misc"));
+    assert.ok(media?.tags.includes("Converge"));
+    assert.ok(media?.tags.includes("Accessibility"));
+    assert.ok(media?.summary.includes("Body text about the talk."));
+
+    const podcast = entries.find((entry) => entry.id === "podcast:interview-w/-guest-name");
+    assert.ok(podcast);
+    assert.equal(podcast?.sourceUrl, "https://designsystems.media/podcast/interview-w/-guest-name/");
+    assert.ok(podcast?.tags.includes("Guest Name"));
+  } finally {
+    await fs.remove(sitePath);
+  }
+});
+
+test("loadSiteFallbackEntries skips a site entry whose videoUrl is already covered by the analysis corpus", async () => {
+  const sitePath = await makeFakeSite();
+  try {
+    const analysisCorpus: SearchCorpusEntry[] = [
+      { id: "tagged111", sourceUrl: "https://www.youtube.com/watch?v=tagged111", title: null, summary: "s", tags: [], keyTakeaways: [] },
+    ];
+    const entries = await loadSiteFallbackEntries(analysisCorpus, { sitePath });
+    assert.equal(entries.find((entry) => entry.id === "media:tagged-talk"), undefined);
+    assert.ok(entries.find((entry) => entry.id.startsWith("podcast:")));
+  } finally {
+    await fs.remove(sitePath);
+  }
+});
+
+test("findContent includes site-fallback entries alongside the analysis corpus without crashing on a slashed slug", async () => {
+  const analysisDir = await makeTempDir("dsmedia-analysis-");
+  const embeddingsDir = await makeTempDir("dsmedia-embeddings-");
+  const sitePath = await makeFakeSite();
+  try {
+    const result = await findContent("guest interview", {
+      analysisDir,
+      embeddingsDir,
+      sitePath,
+      dependencies: {
+        ensureReachable: async () => {},
+        resolveModel: async () => "fake-model",
+        resolveEmbeddingModel: async () => "fake-embed-model",
+        embed: fakeEmbed,
+        generateAnswer: async () => "answer",
+      },
+    });
+
+    assert.equal(result.matches.length, 2);
+    assert.ok(result.matches.some((match) => match.id === "podcast:interview-w/-guest-name"));
+
+    // The sanitized cache file must exist as a flat file, not create a
+    // nested "interview-w/" directory inside data/embeddings.
+    const cacheFiles = await fs.readdir(embeddingsDir);
+    assert.ok(cacheFiles.some((file) => file.includes("interview-w_") && file.includes("guest-name")));
+    assert.ok(cacheFiles.every((file) => !file.includes("/")));
+  } finally {
+    await fs.remove(analysisDir);
+    await fs.remove(embeddingsDir);
+    await fs.remove(sitePath);
+  }
+});
+
 function fakeConfig(): LlmConfig {
   return {
     provider: "ollama",
@@ -145,6 +254,7 @@ test("findContent ranks the corpus by relevance and grounds the answer in the to
       analysisDir,
       metadataDir,
       embeddingsDir,
+      sitePath: NO_SITE_PATH,
       dependencies: {
         ensureReachable: async () => {},
         resolveModel: async () => "fake-model",
@@ -195,10 +305,10 @@ test("findContent caches corpus embeddings so an unchanged entry isn't re-embedd
       generateAnswer: async () => "answer",
     };
 
-    await findContent("accessibility", { analysisDir, metadataDir, embeddingsDir, dependencies });
+    await findContent("accessibility", { analysisDir, metadataDir, embeddingsDir, sitePath: NO_SITE_PATH, dependencies });
     assert.equal(embedCalls, 2); // 1 corpus entry + 1 query
 
-    await findContent("accessibility", { analysisDir, metadataDir, embeddingsDir, dependencies });
+    await findContent("accessibility", { analysisDir, metadataDir, embeddingsDir, sitePath: NO_SITE_PATH, dependencies });
     assert.equal(embedCalls, 3); // corpus entry reused from cache, only the query re-embedded
   } finally {
     await fs.remove(analysisDir);
@@ -213,6 +323,7 @@ test("findContent returns a plain message instead of calling the model when the 
     let called = false;
     const result = await findContent("anything", {
       analysisDir,
+      sitePath: NO_SITE_PATH,
       dependencies: {
         ensureReachable: async () => {
           called = true;

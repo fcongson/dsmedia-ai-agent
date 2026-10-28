@@ -284,7 +284,7 @@ export const OPERATIONS: OperationDefinition[] = [
   {
     id: "find_content",
     description:
-      "Search the library of already-analyzed videos (data/analysis) for content relevant to a natural-language request, and return a short conversational recommendation plus the matching videos with links. Only searches videos that have already been ingested and analysed - run ingest_video/ingest_batch first for anything missing.",
+      "Search for content relevant to a natural-language request and return a short conversational recommendation plus the matching videos with links. Searches already-analyzed videos (data/analysis) plus, as a fallback for anything not yet analysed, designsystems.media's own tagged frontmatter directly.",
     inputSchema: {
       type: "object",
       properties: {
@@ -296,13 +296,19 @@ export const OPERATIONS: OperationDefinition[] = [
           type: "number",
           description: "Maximum number of matching videos to consider. Defaults to 5.",
         },
+        sitePath: {
+          type: "string",
+          description:
+            "Absolute path to the designsystems.media checkout, used for the frontmatter fallback source. Defaults to a sibling directory or DSMEDIA_SITE_DIR; silently skipped if not found.",
+        },
       },
       required: ["query"],
     },
     surfaces: ["mcp", "cli"],
-    handler: async (input: { query: string; limit?: number }) => findContent(input.query, { limit: input.limit }),
+    handler: async (input: { query: string; limit?: number; sitePath?: string }) =>
+      findContent(input.query, { limit: input.limit, sitePath: input.sitePath }),
     cli: {
-      usage: "node --import tsx src/cli.ts find_content <query> [--limit N]",
+      usage: "node --import tsx src/cli.ts find_content <query> [--limit N] [--site-path <path>]",
       requiredDependencies: ["ollama"],
       parseArgs: async (args: string[]) => {
         const limitFlagIndex = args.indexOf("--limit");
@@ -312,17 +318,30 @@ export const OPERATIONS: OperationDefinition[] = [
           throw new Error(`--limit must be a positive number, got: ${limitRaw}`);
         }
 
-        const queryTokens = limitFlagIndex >= 0 ? [...args.slice(0, limitFlagIndex), ...args.slice(limitFlagIndex + 2)] : args;
-        const query = queryTokens.join(" ").trim();
+        const siteFlagIndex = args.indexOf("--site-path");
+        const sitePath = siteFlagIndex >= 0 ? args[siteFlagIndex + 1] : undefined;
+
+        const flagIndexes = new Set<number>();
+        if (limitFlagIndex >= 0) {
+          flagIndexes.add(limitFlagIndex);
+          flagIndexes.add(limitFlagIndex + 1);
+        }
+        if (siteFlagIndex >= 0) {
+          flagIndexes.add(siteFlagIndex);
+          flagIndexes.add(siteFlagIndex + 1);
+        }
+
+        const query = args.filter((_, index) => !flagIndexes.has(index)).join(" ").trim();
         if (!query) {
           throw new Error(
-            "Missing required argument: query\n\nUsage:\n  node --import tsx src/cli.ts find_content <query> [--limit N]",
+            "Missing required argument: query\n\nUsage:\n  node --import tsx src/cli.ts find_content <query> [--limit N] [--site-path <path>]",
           );
         }
 
-        return { query, limit };
+        return { query, limit, sitePath };
       },
-      run: async (input: { query: string; limit?: number }, log) => findContent(input.query, { limit: input.limit, log }),
+      run: async (input: { query: string; limit?: number; sitePath?: string }, log) =>
+        findContent(input.query, { limit: input.limit, sitePath: input.sitePath, log }),
     },
   },
   {

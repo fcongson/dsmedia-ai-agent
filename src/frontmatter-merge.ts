@@ -259,6 +259,19 @@ export function getTopLevelScalar(frontMatter: string, key: string): string | nu
   return unquote(inlineValue);
 }
 
+/** Reads the full values of a top-level array key (e.g. `series`, `tags`),
+ * in either flow or block style. Returns an empty array if the key is
+ * absent or empty. */
+export function getTopLevelArray(frontMatter: string, key: string): string[] {
+  const lines = frontMatter.split(/\r?\n/u);
+  const range = findTopLevelKeyRanges(lines).find((entry) => entry.key === key);
+  if (!range) {
+    return [];
+  }
+
+  return parseExistingArrayValue(lines, range);
+}
+
 export interface HasTopLevelKeyOptions {
   requireNonEmpty?: boolean;
 }

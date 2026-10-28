@@ -10,6 +10,8 @@ import {
   resolveOllamaModel as resolveOllamaModelDefault,
 } from "./ollama.js";
 import { getDataDirs } from "./runtime.js";
+import { assertSitePath, resolveSitePath, SITE_BASE_URL } from "./site.js";
+import { scanSiteContent, type ContentKind, type SiteEntry } from "./site-content.js";
 
 export type ProgressLogger = (message: string) => void;
 function noopLogger(): void {}
@@ -60,6 +62,12 @@ export interface FindContentOptions {
   analysisDir?: string;
   metadataDir?: string;
   embeddingsDir?: string;
+  /** Absolute path to the designsystems.media checkout, for the site
+   * frontmatter fallback source below. Defaults like the other site-aware
+   * operations (classify_taxonomy, retag_site_media): a sibling checkout,
+   * or DSMEDIA_SITE_DIR. If the site isn't actually there, the fallback is
+   * silently skipped rather than failing the whole search. */
+  sitePath?: string;
   dependencies?: Partial<FindContentDependencies>;
 }
 
@@ -130,6 +138,59 @@ export async function loadSearchCorpus(options: { analysisDir?: string; metadata
   return entries;
 }
 
+function siteEntryUrl(kind: ContentKind, slug: string): string {
+  return `${SITE_BASE_URL}${kind === "media" ? "/video/" : "/podcast/"}${slug}/`;
+}
+
+function siteEntryToCorpusEntry(kind: ContentKind, entry: SiteEntry): SearchCorpusEntry {
+  return {
+    id: `${kind}:${entry.slug}`,
+    sourceUrl: siteEntryUrl(kind, entry.slug),
+    title: entry.title,
+    summary: entry.bodyExcerpt,
+    tags: [...entry.existingTags, ...entry.series, ...entry.topics, ...entry.tools, ...entry.systems, ...entry.speakers],
+    keyTakeaways: [],
+  };
+}
+
+/** Site entries that already went through analyse_transcript are covered
+ * by loadSearchCorpus - this only adds entries data/analysis doesn't have
+ * yet, sourced straight from designsystems.media's own frontmatter
+ * (title, tags, closed-taxonomy values, body text). Most media entries
+ * are already tagged from the retagging pass, so this is a cheap way to
+ * make nearly the whole site findable without re-running ingest on
+ * everything. Degrades to an empty array - never throws - if the sibling
+ * site checkout isn't present, since find_content shouldn't hard-fail for
+ * users who don't have it. */
+export async function loadSiteFallbackEntries(
+  analysisCorpus: SearchCorpusEntry[],
+  options: { sitePath?: string } = {},
+): Promise<SearchCorpusEntry[]> {
+  let sitePath: string;
+  try {
+    sitePath = resolveSitePath({ override: options.sitePath });
+    await assertSitePath(sitePath);
+  } catch {
+    return [];
+  }
+
+  const covered = new Set(analysisCorpus.map((entry) => entry.sourceUrl.toLowerCase()));
+  const fallback: SearchCorpusEntry[] = [];
+
+  for (const kind of ["media", "podcast"] as const) {
+    const entries = await scanSiteContent(sitePath, kind).catch(() => [] as SiteEntry[]);
+    for (const entry of entries) {
+      if (entry.videoUrl && covered.has(entry.videoUrl.toLowerCase())) {
+        continue;
+      }
+
+      fallback.push(siteEntryToCorpusEntry(kind, entry));
+    }
+  }
+
+  return fallback;
+}
+
 export function embeddingText(entry: SearchCorpusEntry): string {
   return [entry.title, entry.summary, entry.tags.join(", "), entry.keyTakeaways.join(". ")].filter(Boolean).join("\n");
 }
@@ -164,8 +225,16 @@ interface EmbeddingCacheRecord {
   vector: number[];
 }
 
+// Corpus entry ids are usually a bare YouTube id, but site-fallback entries
+// (below) are built from Astro content slugs, and a handful of those
+// contain literal "/" characters (e.g. an episode titled "... w/ So-and-so"
+// became a nested directory) - sanitize before using one as a filename.
+function cacheFileName(id: string): string {
+  return `${id.replace(/[^a-zA-Z0-9_.-]/gu, "_")}.json`;
+}
+
 async function loadCachedEmbedding(embeddingsDir: string, id: string): Promise<EmbeddingCacheRecord | null> {
-  const cachePath = path.join(embeddingsDir, `${id}.json`);
+  const cachePath = path.join(embeddingsDir, cacheFileName(id));
   if (!(await fs.pathExists(cachePath))) {
     return null;
   }
@@ -175,7 +244,7 @@ async function loadCachedEmbedding(embeddingsDir: string, id: string): Promise<E
 
 async function saveCachedEmbedding(embeddingsDir: string, id: string, record: EmbeddingCacheRecord): Promise<void> {
   await fs.ensureDir(embeddingsDir);
-  await fs.writeJson(path.join(embeddingsDir, `${id}.json`), record, { spaces: 2 });
+  await fs.writeJson(path.join(embeddingsDir, cacheFileName(id)), record, { spaces: 2 });
 }
 
 /** Embeds each corpus entry, reusing a cached vector whenever the entry's
@@ -213,7 +282,10 @@ async function embedCorpus(
 export function buildAnswerPrompt(query: string, matches: SearchMatch[]): string {
   const context = matches
     .map((match, index) => {
-      const lines = [`${index + 1}. ${match.title ?? match.id}`, `   URL: ${match.sourceUrl}`, `   Summary: ${match.summary}`];
+      const lines = [`${index + 1}. ${match.title ?? match.id}`, `   URL: ${match.sourceUrl}`];
+      if (match.summary.trim()) {
+        lines.push(`   Summary: ${match.summary}`);
+      }
       if (match.tags.length > 0) {
         lines.push(`   Tags: ${match.tags.join(", ")}`);
       }
@@ -249,11 +321,12 @@ async function synthesizeAnswer(
   return response.trim();
 }
 
-/** Searches the library of already-analyzed videos (data/analysis) for
- * content relevant to a natural-language request. Embeds the corpus (with
- * caching) and the query with the resolved Ollama model, ranks by cosine
- * similarity, then asks the model for a short conversational recommendation
- * grounded in the top matches. */
+/** Searches already-analyzed videos (data/analysis), plus - as a fallback
+ * for anything not yet analyzed - designsystems.media's own tagged
+ * frontmatter, for content relevant to a natural-language request. Embeds
+ * the corpus (with caching) and the query with a dedicated Ollama
+ * embedding model, ranks by cosine similarity, then asks the chat model
+ * for a short conversational recommendation grounded in the top matches. */
 export async function findContent(query: string, options: FindContentOptions = {}): Promise<FindContentResult> {
   const trimmedQuery = query.trim();
   if (!trimmedQuery) {
@@ -266,7 +339,13 @@ export async function findContent(query: string, options: FindContentOptions = {
   const dataDirs = getDataDirs();
   const embeddingsDir = options.embeddingsDir ?? dataDirs.EMBEDDINGS_DIR;
 
-  const corpus = await loadSearchCorpus({ analysisDir: options.analysisDir, metadataDir: options.metadataDir });
+  const analysisCorpus = await loadSearchCorpus({ analysisDir: options.analysisDir, metadataDir: options.metadataDir });
+  const siteFallback = await loadSiteFallbackEntries(analysisCorpus, { sitePath: options.sitePath });
+  if (siteFallback.length > 0) {
+    log(`Added ${siteFallback.length} entries from designsystems.media's own frontmatter (not yet in data/analysis)`);
+  }
+  const corpus = [...analysisCorpus, ...siteFallback];
+
   if (corpus.length === 0) {
     return {
       query: trimmedQuery,

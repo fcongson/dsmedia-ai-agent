@@ -182,26 +182,30 @@ Expected behavior by step:
 - `transcribe_audio` produces `data/transcripts/<videoId>.txt`, using subtitles first and Whisper as fallback.
 - `analyse_transcript` reads transcript text from the file path you pass and writes `data/analysis/<videoId>.json`, including the cached YouTube description for later reference.
 - `expand_playlist` returns a flat list of video ids, URLs, and titles.
-- `find_content` searches `data/analysis/*.json` for videos relevant to a natural-language request and returns a short conversational recommendation plus the matching videos. See "Finding content" below.
+- `find_content` searches `data/analysis/*.json`, plus designsystems.media's own frontmatter as a fallback, for videos relevant to a natural-language request, and returns a short conversational recommendation plus the matching videos. See "Finding content" below.
 
 ## Finding content
 
-`find_content` turns the ingested library into a chat-style discovery tool: describe what you're looking for and it returns a short recommendation grounded in the videos that are actually in `data/analysis`, plus their YouTube links.
+`find_content` turns the library into a chat-style discovery tool: describe what you're looking for and it returns a short recommendation grounded in real matches, with links.
 
 ```sh
-npm run find_content -- 'something practical on getting engineering buy-in for a design system' --limit 5
+npm run find_content -- 'something practical on getting engineering buy-in for a design system' --limit 5 [--site-path <path>]
 ```
 
-How it works:
+It searches two sources, merged into one corpus:
 
-1. Loads every cached analysis artifact (summary, tags, key takeaways), joined with its title from `data/metadata` when available.
-2. Embeds each entry with a dedicated Ollama embedding model (`nomic-embed-text` by default, configurable via `DSMEDIA_LLM_EMBEDDING_MODEL`), caching the vector at `data/embeddings/<videoId>.json` keyed by a hash of the embedded text - an unchanged entry is never re-embedded on a later search.
-3. Embeds the query the same way and ranks the corpus by cosine similarity.
-4. Asks the resolved chat model (your normal `balanced`/`fast`/`quality` profile) to write a short, conversational recommendation grounded only in the top matches, citing titles and a URL or two.
+1. Every cached analysis artifact under `data/analysis` (summary, tags, key takeaways from `analyse_transcript`), joined with its title from `data/metadata` when available.
+2. As a fallback, for anything not yet analysed: designsystems.media's own frontmatter directly - title, tags, closed-taxonomy values (`series`/`topics`/`tools`/`systems`), speakers, and body text, read from the sibling site checkout (same default/override as `classify_taxonomy`/`retag_site_media`: a sibling directory, `DSMEDIA_SITE_DIR`, or `--site-path`). Most media entries are already tagged from the retagging pass, so this covers nearly the whole site without re-running ingest on anything. If the site checkout isn't found, this source is silently skipped rather than failing the search - `data/analysis` alone is still searched.
+
+Then:
+
+3. Embeds every entry with a dedicated Ollama embedding model (`nomic-embed-text` by default, configurable via `DSMEDIA_LLM_EMBEDDING_MODEL`), caching the vector at `data/embeddings/` keyed by a hash of the embedded text - an unchanged entry is never re-embedded on a later search.
+4. Embeds the query the same way and ranks the merged corpus by cosine similarity.
+5. Asks the resolved chat model (your normal `balanced`/`fast`/`quality` profile) to write a short, conversational recommendation grounded only in the top matches, citing titles and a URL or two.
 
 Embedding and chat models are different model types in Ollama - a chat model like `llama3.1:8b` can't serve `/api/embeddings` at all, so this needs `nomic-embed-text` (or whatever embedding model you configure) pulled separately: `ollama pull nomic-embed-text`.
 
-This only searches videos that have already been through `analyse_transcript` (directly, or via `ingest_video`/`ingest_batch`/`retag_site_media`) - it doesn't ingest anything itself. It's also local-only for now: the MCP tool is reachable from Claude Desktop/Open WebUI chats, not from designsystems.media itself, since site visitors won't have a local Ollama to call.
+This doesn't ingest anything itself - run `ingest_video`/`ingest_batch`/`retag_site_media` to actually produce `data/analysis` artifacts. It's also local-only for now: the MCP tool is reachable from Claude Desktop/Open WebUI chats, not from designsystems.media itself, since site visitors won't have a local Ollama to call.
 
 ## Retagging designsystems.media against its closed taxonomy
 
