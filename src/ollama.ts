@@ -47,6 +47,23 @@ function findCompatibleModel(target: string, available: string[]): string | unde
   return available.find((name) => name === target || name.startsWith(`${target}:`));
 }
 
+/** Chat models and embedding models are different model types in Ollama -
+ * asking a chat model for /api/embeddings fails because Ollama never loads
+ * its runner in embedding mode for them, so (unlike resolveOllamaModel)
+ * there's no sensible fallback list to try. Just check the configured
+ * embedding model is actually installed and say so clearly if not. */
+export async function resolveOllamaEmbeddingModel(config: LlmConfig): Promise<string> {
+  const available = await listOllamaModelNames(config.baseUrl);
+  const match = findCompatibleModel(config.embeddingModel, available);
+  if (!match) {
+    throw new Error(
+      `Embedding model "${config.embeddingModel}" is not installed in Ollama. Run \`ollama pull ${config.embeddingModel}\` and try again.`,
+    );
+  }
+
+  return match;
+}
+
 export async function resolveOllamaModel(config: LlmConfig): Promise<string> {
   const available = await listOllamaModelNames(config.baseUrl);
   if (available.length === 0) {
@@ -88,9 +105,10 @@ export async function generateOllamaEmbedding(config: LlmConfig, model: string, 
   } catch (error) {
     const message = (error as Error).message;
     if (/does not support embeddings/iu.test(message)) {
-      throw new Error(
-        `Ollama at ${config.baseUrl} reports that it does not support embeddings (${message}). This feature needs an Ollama server with the embeddings endpoint enabled - check your Ollama version/setup, or run against a different baseUrl that does support it.`,
-      );
+      // Ollama only loads its runner in embedding mode for models it
+      // recognizes as embedding models - calling this on a chat/completion
+      // model fails even though the model itself is installed and working.
+      throw new Error(`Model "${model}" is not an embedding model (${message}). Use an embedding model, e.g. nomic-embed-text.`);
     }
     throw error;
   }

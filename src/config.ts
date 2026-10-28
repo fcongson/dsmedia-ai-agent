@@ -18,6 +18,11 @@ export interface LlmConfig {
   temperature: number;
   numCtx?: number;
   structuredOutput: boolean;
+  /** Ollama has no fallback/profile logic for this one - chat models and
+   * embedding models are different model types, so there's nothing sensible
+   * to fall back to if the configured one isn't installed (see
+   * find_content / search.ts). */
+  embeddingModel: string;
 }
 
 export interface ProjectConfig {
@@ -52,6 +57,7 @@ const DEFAULT_CONFIG: LlmConfig = {
   profile: "balanced",
   temperature: 0.2,
   structuredOutput: true,
+  embeddingModel: "nomic-embed-text",
 };
 
 function mergeDefined<T extends object>(...values: Array<Partial<T> | undefined>): Partial<T> {
@@ -109,6 +115,7 @@ function getEnvConfig(env: NodeJS.ProcessEnv): Partial<LlmConfig> {
     temperature: parseNumber(env.DSMEDIA_LLM_TEMPERATURE),
     numCtx: parseNumber(env.DSMEDIA_LLM_NUM_CTX),
     structuredOutput: parseBoolean(env.DSMEDIA_LLM_STRUCTURED_OUTPUT),
+    embeddingModel: env.DSMEDIA_LLM_EMBEDDING_MODEL,
   };
 }
 

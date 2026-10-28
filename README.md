@@ -46,6 +46,7 @@ When subtitles are available, the pipeline keeps one preferred English `.vtt` va
 - `whisper` from `openai-whisper`
 - Ollama running locally
 - At least one Ollama model installed
+- `nomic-embed-text` pulled in Ollama if you want to use `find_content` (`ollama pull nomic-embed-text`) - chat models can't serve embeddings, so this is a separate, dedicated pull
 
 Recommended default profile for a 16 GB Apple Silicon machine:
 
@@ -108,6 +109,7 @@ Supported environment variables:
 - `DSMEDIA_LLM_TEMPERATURE`
 - `DSMEDIA_LLM_NUM_CTX`
 - `DSMEDIA_LLM_STRUCTURED_OUTPUT`
+- `DSMEDIA_LLM_EMBEDDING_MODEL` (used by `find_content`; see "Finding content" below)
 
 Examples:
 
@@ -193,9 +195,11 @@ npm run find_content -- 'something practical on getting engineering buy-in for a
 How it works:
 
 1. Loads every cached analysis artifact (summary, tags, key takeaways), joined with its title from `data/metadata` when available.
-2. Embeds each entry with the resolved Ollama model, caching the vector at `data/embeddings/<videoId>.json` keyed by a hash of the embedded text - an unchanged entry is never re-embedded on a later search.
+2. Embeds each entry with a dedicated Ollama embedding model (`nomic-embed-text` by default, configurable via `DSMEDIA_LLM_EMBEDDING_MODEL`), caching the vector at `data/embeddings/<videoId>.json` keyed by a hash of the embedded text - an unchanged entry is never re-embedded on a later search.
 3. Embeds the query the same way and ranks the corpus by cosine similarity.
-4. Asks the model to write a short, conversational recommendation grounded only in the top matches, citing titles and a URL or two.
+4. Asks the resolved chat model (your normal `balanced`/`fast`/`quality` profile) to write a short, conversational recommendation grounded only in the top matches, citing titles and a URL or two.
+
+Embedding and chat models are different model types in Ollama - a chat model like `llama3.1:8b` can't serve `/api/embeddings` at all, so this needs `nomic-embed-text` (or whatever embedding model you configure) pulled separately: `ollama pull nomic-embed-text`.
 
 This only searches videos that have already been through `analyse_transcript` (directly, or via `ingest_video`/`ingest_batch`/`retag_site_media`) - it doesn't ingest anything itself. It's also local-only for now: the MCP tool is reachable from Claude Desktop/Open WebUI chats, not from designsystems.media itself, since site visitors won't have a local Ollama to call.
 

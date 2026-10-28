@@ -40,3 +40,11 @@ test("resolveLlmConfig applies explicit overrides last", async () => {
 test("balanced profile resolves to the verified local default model", () => {
   assert.equal(DEFAULT_LLM_PROFILES.balanced.model, "llama3.1:8b");
 });
+
+test("embeddingModel defaults to nomic-embed-text and is overridable via env", async () => {
+  const defaultConfig = await resolveLlmConfig({});
+  assert.equal(defaultConfig.embeddingModel, "nomic-embed-text");
+
+  const overridden = await resolveLlmConfig({ env: { DSMEDIA_LLM_EMBEDDING_MODEL: "all-minilm" } });
+  assert.equal(overridden.embeddingModel, "all-minilm");
+});

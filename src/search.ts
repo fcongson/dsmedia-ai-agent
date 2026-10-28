@@ -6,6 +6,7 @@ import {
   ensureOllamaReachable as ensureOllamaReachableDefault,
   generateOllamaEmbedding as generateOllamaEmbeddingDefault,
   generateOllamaResponse as generateOllamaResponseDefault,
+  resolveOllamaEmbeddingModel as resolveOllamaEmbeddingModelDefault,
   resolveOllamaModel as resolveOllamaModelDefault,
 } from "./ollama.js";
 import { getDataDirs } from "./runtime.js";
@@ -38,6 +39,7 @@ export interface FindContentResult {
 export interface FindContentDependencies {
   ensureReachable: typeof ensureOllamaReachableDefault;
   resolveModel: typeof resolveOllamaModelDefault;
+  resolveEmbeddingModel: typeof resolveOllamaEmbeddingModelDefault;
   embed: typeof generateOllamaEmbeddingDefault;
   generateAnswer: typeof generateOllamaResponseDefault;
 }
@@ -45,6 +47,7 @@ export interface FindContentDependencies {
 const DEFAULT_DEPENDENCIES: FindContentDependencies = {
   ensureReachable: ensureOllamaReachableDefault,
   resolveModel: resolveOllamaModelDefault,
+  resolveEmbeddingModel: resolveOllamaEmbeddingModelDefault,
   embed: generateOllamaEmbeddingDefault,
   generateAnswer: generateOllamaResponseDefault,
 };
@@ -181,7 +184,7 @@ async function saveCachedEmbedding(embeddingsDir: string, id: string, record: Em
  * search. */
 async function embedCorpus(
   config: LlmConfig,
-  model: string,
+  embeddingModel: string,
   corpus: SearchCorpusEntry[],
   embeddingsDir: string,
   embed: FindContentDependencies["embed"],
@@ -191,7 +194,7 @@ async function embedCorpus(
 
   for (const entry of corpus) {
     const text = embeddingText(entry);
-    const hash = hashEmbeddingInput(model, text);
+    const hash = hashEmbeddingInput(embeddingModel, text);
     const cached = await loadCachedEmbedding(embeddingsDir, entry.id);
     if (cached && cached.hash === hash) {
       vectors.set(entry.id, cached.vector);
@@ -199,7 +202,7 @@ async function embedCorpus(
     }
 
     log(`Embedding ${entry.id}`);
-    const vector = await embed(config, model, text);
+    const vector = await embed(config, embeddingModel, text);
     await saveCachedEmbedding(embeddingsDir, entry.id, { hash, vector });
     vectors.set(entry.id, vector);
   }
@@ -275,12 +278,13 @@ export async function findContent(query: string, options: FindContentOptions = {
   const config = await resolveLlmConfig({ overrides: options.overrides });
   await deps.ensureReachable(config.baseUrl);
   const model = await deps.resolveModel(config);
+  const embeddingModel = await deps.resolveEmbeddingModel(config);
 
-  log(`Embedding ${corpus.length} corpus entries (model ${model})`);
-  const vectors = await embedCorpus(config, model, corpus, embeddingsDir, deps.embed, log);
+  log(`Embedding ${corpus.length} corpus entries (embedding model ${embeddingModel})`);
+  const vectors = await embedCorpus(config, embeddingModel, corpus, embeddingsDir, deps.embed, log);
 
   log("Embedding query");
-  const queryVector = await deps.embed(config, model, trimmedQuery);
+  const queryVector = await deps.embed(config, embeddingModel, trimmedQuery);
 
   const matches: SearchMatch[] = corpus
     .map((entry) => ({ ...entry, score: cosineSimilarity(queryVector, vectors.get(entry.id) ?? []) }))

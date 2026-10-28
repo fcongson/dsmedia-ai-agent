@@ -97,7 +97,14 @@ test("loadSearchCorpus returns an empty array when the analysis directory doesn'
 });
 
 function fakeConfig(): LlmConfig {
-  return { provider: "ollama", baseUrl: "http://fake", profile: "balanced", temperature: 0.2, structuredOutput: true };
+  return {
+    provider: "ollama",
+    baseUrl: "http://fake",
+    profile: "balanced",
+    temperature: 0.2,
+    structuredOutput: true,
+    embeddingModel: "nomic-embed-text",
+  };
 }
 
 // Deterministic stand-in for a real embedding: counts how many times each of
@@ -141,6 +148,7 @@ test("findContent ranks the corpus by relevance and grounds the answer in the to
       dependencies: {
         ensureReachable: async () => {},
         resolveModel: async () => "fake-model",
+        resolveEmbeddingModel: async () => "fake-embed-model",
         embed: fakeEmbed,
         generateAnswer: async (_config, _model, prompt) => {
           answerPrompt = prompt;
@@ -179,6 +187,7 @@ test("findContent caches corpus embeddings so an unchanged entry isn't re-embedd
     const dependencies = {
       ensureReachable: async () => {},
       resolveModel: async () => "fake-model",
+      resolveEmbeddingModel: async () => "fake-embed-model",
       embed: async (config: LlmConfig, model: string, text: string) => {
         embedCalls += 1;
         return fakeEmbed(config, model, text);
@@ -209,6 +218,7 @@ test("findContent returns a plain message instead of calling the model when the 
           called = true;
         },
         resolveModel: async () => "fake-model",
+        resolveEmbeddingModel: async () => "fake-embed-model",
         embed: fakeEmbed,
         generateAnswer: async () => "unused",
       },
