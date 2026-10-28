@@ -14,7 +14,9 @@ const FALLBACK_MODELS = [
 async function fetchJson<T>(url: string, init?: Parameters<typeof fetch>[1]): Promise<T> {
   const response = await fetch(url, init);
   if (!response.ok) {
-    throw new Error(`HTTP ${response.status} from ${url}`);
+    const body = await response.text().catch(() => "");
+    const detail = body.trim() ? ` - ${body.trim()}` : "";
+    throw new Error(`HTTP ${response.status} from ${url}${detail}`);
   }
   return (await response.json()) as T;
 }
@@ -71,6 +73,33 @@ export async function resolveOllamaModel(config: LlmConfig): Promise<string> {
   }
 
   return available[0];
+}
+
+export async function generateOllamaEmbedding(config: LlmConfig, model: string, text: string): Promise<number[]> {
+  let response: { embedding: number[] };
+  try {
+    response = await fetchJson<{ embedding: number[] }>(`${config.baseUrl}/api/embeddings`, {
+      method: "POST",
+      headers: {
+        "content-type": "application/json",
+      },
+      body: JSON.stringify({ model, prompt: text }),
+    });
+  } catch (error) {
+    const message = (error as Error).message;
+    if (/does not support embeddings/iu.test(message)) {
+      throw new Error(
+        `Ollama at ${config.baseUrl} reports that it does not support embeddings (${message}). This feature needs an Ollama server with the embeddings endpoint enabled - check your Ollama version/setup, or run against a different baseUrl that does support it.`,
+      );
+    }
+    throw error;
+  }
+
+  if (!Array.isArray(response.embedding) || response.embedding.length === 0) {
+    throw new Error(`Ollama returned an empty embedding for model ${model}.`);
+  }
+
+  return response.embedding;
 }
 
 export async function generateOllamaResponse(config: LlmConfig, model: string, prompt: string): Promise<string> {

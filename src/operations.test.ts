@@ -22,6 +22,7 @@ test("cli operations include canonical ingest commands", () => {
     "expand_playlist",
     "fetch_description",
     "fetch_subtitles",
+    "find_content",
     "ingest_batch",
     "ingest_video",
     "parse_video_id",

@@ -8,6 +8,7 @@ import { ensureMetadata } from "./metadata.js";
 import { ingestBatch, ingestVideo, type DependencyName, type ProgressLogger } from "./pipeline.js";
 import { retagSiteMedia, writeRetagReport, type RetagOptions } from "./retag.js";
 import { createIngestContext } from "./runtime.js";
+import { findContent } from "./search.js";
 import { loadSiteTaxonomy, resolveSitePath } from "./site.js";
 import type { ContentKind } from "./site-content.js";
 import { transcribeAudio, tryDownloadSubtitles } from "./transcribe.js";
@@ -278,6 +279,50 @@ export const OPERATIONS: OperationDefinition[] = [
           log,
         );
       },
+    },
+  },
+  {
+    id: "find_content",
+    description:
+      "Search the library of already-analyzed videos (data/analysis) for content relevant to a natural-language request, and return a short conversational recommendation plus the matching videos with links. Only searches videos that have already been ingested and analysed - run ingest_video/ingest_batch first for anything missing.",
+    inputSchema: {
+      type: "object",
+      properties: {
+        query: {
+          type: "string",
+          description: "A natural-language description of what the user wants to watch or learn about.",
+        },
+        limit: {
+          type: "number",
+          description: "Maximum number of matching videos to consider. Defaults to 5.",
+        },
+      },
+      required: ["query"],
+    },
+    surfaces: ["mcp", "cli"],
+    handler: async (input: { query: string; limit?: number }) => findContent(input.query, { limit: input.limit }),
+    cli: {
+      usage: "node --import tsx src/cli.ts find_content <query> [--limit N]",
+      requiredDependencies: ["ollama"],
+      parseArgs: async (args: string[]) => {
+        const limitFlagIndex = args.indexOf("--limit");
+        const limitRaw = limitFlagIndex >= 0 ? args[limitFlagIndex + 1] : undefined;
+        const limit = limitRaw ? Number(limitRaw) : undefined;
+        if (limitRaw && (!Number.isFinite(limit) || (limit as number) <= 0)) {
+          throw new Error(`--limit must be a positive number, got: ${limitRaw}`);
+        }
+
+        const queryTokens = limitFlagIndex >= 0 ? [...args.slice(0, limitFlagIndex), ...args.slice(limitFlagIndex + 2)] : args;
+        const query = queryTokens.join(" ").trim();
+        if (!query) {
+          throw new Error(
+            "Missing required argument: query\n\nUsage:\n  node --import tsx src/cli.ts find_content <query> [--limit N]",
+          );
+        }
+
+        return { query, limit };
+      },
+      run: async (input: { query: string; limit?: number }, log) => findContent(input.query, { limit: input.limit, log }),
     },
   },
   {

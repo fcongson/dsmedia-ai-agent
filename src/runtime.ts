@@ -16,6 +16,7 @@ export function getDataDirs() {
     NOTES_DIR: path.join(ROOT_DIR, "data", "notes"),
     TRANSCRIPTS_DIR: path.join(ROOT_DIR, "data", "transcripts"),
     ANALYSIS_DIR: path.join(ROOT_DIR, "data", "analysis"),
+    EMBEDDINGS_DIR: path.join(ROOT_DIR, "data", "embeddings"),
   };
 }
 

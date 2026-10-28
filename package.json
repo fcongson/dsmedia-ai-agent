@@ -16,6 +16,7 @@
     "analyse_transcript": "node --import tsx src/cli.ts analyse_transcript",
     "write_video_summary": "node --import tsx src/cli.ts write_video_summary",
     "expand_playlist": "node --import tsx src/cli.ts expand_playlist",
+    "find_content": "node --import tsx src/cli.ts find_content",
     "classify_taxonomy": "node --import tsx src/cli.ts classify_taxonomy",
     "retag_site_media": "node --import tsx src/cli.ts retag_site_media",
     "server": "node --import tsx src/server.ts",

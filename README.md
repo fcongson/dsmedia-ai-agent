@@ -35,6 +35,7 @@ Artifact paths are stable and source-linked:
 - `data/transcripts/<videoId>.txt`
 - `data/transcripts/<videoId>*.vtt`
 - `data/analysis/<videoId>.json`
+- `data/embeddings/<videoId>.json` (cached search embedding, see "Finding content" below)
 
 When subtitles are available, the pipeline keeps one preferred English `.vtt` variant for the video and removes the rest.
 
@@ -166,6 +167,7 @@ npm run transcribe_audio -- '<youtube-url>'
 npm run analyse_transcript -- '<youtube-url>' 'data/transcripts/<videoId>.txt'
 npm run write_video_summary -- '<youtube-url>'
 npm run expand_playlist -- '<playlist-or-channel-url>'
+npm run find_content -- '<natural-language request>' [--limit N]
 ```
 
 Expected behavior by step:
@@ -178,6 +180,24 @@ Expected behavior by step:
 - `transcribe_audio` produces `data/transcripts/<videoId>.txt`, using subtitles first and Whisper as fallback.
 - `analyse_transcript` reads transcript text from the file path you pass and writes `data/analysis/<videoId>.json`, including the cached YouTube description for later reference.
 - `expand_playlist` returns a flat list of video ids, URLs, and titles.
+- `find_content` searches `data/analysis/*.json` for videos relevant to a natural-language request and returns a short conversational recommendation plus the matching videos. See "Finding content" below.
+
+## Finding content
+
+`find_content` turns the ingested library into a chat-style discovery tool: describe what you're looking for and it returns a short recommendation grounded in the videos that are actually in `data/analysis`, plus their YouTube links.
+
+```sh
+npm run find_content -- 'something practical on getting engineering buy-in for a design system' --limit 5
+```
+
+How it works:
+
+1. Loads every cached analysis artifact (summary, tags, key takeaways), joined with its title from `data/metadata` when available.
+2. Embeds each entry with the resolved Ollama model, caching the vector at `data/embeddings/<videoId>.json` keyed by a hash of the embedded text - an unchanged entry is never re-embedded on a later search.
+3. Embeds the query the same way and ranks the corpus by cosine similarity.
+4. Asks the model to write a short, conversational recommendation grounded only in the top matches, citing titles and a URL or two.
+
+This only searches videos that have already been through `analyse_transcript` (directly, or via `ingest_video`/`ingest_batch`/`retag_site_media`) - it doesn't ingest anything itself. It's also local-only for now: the MCP tool is reachable from Claude Desktop/Open WebUI chats, not from designsystems.media itself, since site visitors won't have a local Ollama to call.
 
 ## Retagging designsystems.media against its closed taxonomy
 
@@ -249,6 +269,7 @@ The server communicates over stdio and exposes these tools from the shared regis
 - `analyse_transcript`
 - `expand_playlist`
 - `classify_taxonomy`
+- `find_content`
 
 `retag_site_media` is CLI-only (it's a long-running batch job over many
 videos, same reasoning as `ingest_batch`).
