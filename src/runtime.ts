@@ -1,5 +1,6 @@
 import path from "node:path";
 import { fileURLToPath } from "node:url";
+import { execa, type Options } from "execa";
 import fs from "fs-extra";
 
 const LOCAL_VENV_BIN = path.resolve(".venv/bin");
@@ -46,6 +47,67 @@ export async function resolveExecutable(command: string): Promise<string> {
   }
 
   throw new Error(`Required command is not available: ${command}`);
+}
+
+export function sleep(ms: number): Promise<void> {
+  return new Promise((resolve) => {
+    setTimeout(resolve, ms);
+  });
+}
+
+// YouTube throttles/blocks callers that fire requests back-to-back, and a single
+// ingest can shell out to yt-dlp several times (metadata, description, subtitles,
+// audio). These two knobs keep every yt-dlp invocation in the process on one
+// politeness budget: a minimum gap between any two calls, and flags that make
+// yt-dlp itself pace requests within a single invocation (e.g. playlist expansion).
+const YT_DLP_MIN_GAP_MS = Number(process.env.DSMEDIA_YTDLP_MIN_GAP_MS ?? 2000);
+const YT_DLP_POLITE_ARGS = ["--sleep-requests", "1", "--sleep-interval", "3", "--max-sleep-interval", "8"];
+
+const BLOCKED_PATTERNS = [
+  "sign in to confirm",
+  "confirm you're not a bot",
+  "http error 429",
+  "429 too many requests",
+  "too many requests",
+];
+
+export function isYtDlpBlocked(text: string | undefined | null): boolean {
+  if (!text) {
+    return false;
+  }
+  const normalized = text.toLowerCase();
+  return BLOCKED_PATTERNS.some((pattern) => normalized.includes(pattern));
+}
+
+let lastYtDlpCallAt = 0;
+let ytDlpQueue: Promise<unknown> = Promise.resolve();
+
+/**
+ * Runs yt-dlp with a shared politeness budget: calls are serialized (so
+ * concurrent operations never hit YouTube at the same instant) and spaced at
+ * least DSMEDIA_YTDLP_MIN_GAP_MS apart. `url` is appended last so it can't be
+ * mistaken for a flag value by any args passed in.
+ */
+export function runYtDlp<OptionsType extends Options = {}>(args: string[], url: string, options?: OptionsType) {
+  const run = async () => {
+    const ytDlp = await resolveExecutable("yt-dlp");
+    const wait = YT_DLP_MIN_GAP_MS - (Date.now() - lastYtDlpCallAt);
+    if (wait > 0) {
+      await sleep(wait);
+    }
+    try {
+      return await execa(ytDlp, [...YT_DLP_POLITE_ARGS, ...args, url], options);
+    } finally {
+      lastYtDlpCallAt = Date.now();
+    }
+  };
+
+  const scheduled = ytDlpQueue.then(run, run);
+  ytDlpQueue = scheduled.then(
+    () => undefined,
+    () => undefined,
+  );
+  return scheduled;
 }
 
 function extractVideoId(url: URL): string | null {

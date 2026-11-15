@@ -5,7 +5,7 @@ import { ensureDescription } from "./description.js";
 import { downloadVideo } from "./download.js";
 import { writeVideoSummary } from "./notes.js";
 import { expandPlaylist, type PlaylistEntry } from "./expand_playlist.js";
-import { createIngestContext, resolveExecutable, type IngestContext } from "./runtime.js";
+import { createIngestContext, isYtDlpBlocked, resolveExecutable, sleep, type IngestContext } from "./runtime.js";
 import { transcribeWithWhisper, tryDownloadSubtitles } from "./transcribe.js";
 import { resolveLlmConfig } from "./config.js";
 import { ensureOllamaReachable } from "./ollama.js";
@@ -157,11 +157,6 @@ async function ensureTranscript(
     };
   }
 
-  if (!artifacts.audioExists) {
-    log(`Video ${context.id}: downloading audio`);
-    await downloadVideo(context);
-  }
-
   log(`Video ${context.id}: checking subtitles`);
   const subtitleTranscript = await tryDownloadSubtitles(context);
   if (subtitleTranscript) {
@@ -170,6 +165,11 @@ async function ensureTranscript(
       transcript: subtitleTranscript,
       transcriptSource: "subtitles",
     };
+  }
+
+  if (!artifacts.audioExists) {
+    log(`Video ${context.id}: no subtitles available, downloading audio`);
+    await downloadVideo(context);
   }
 
   log(`Video ${context.id}: transcribing audio with Whisper`);
@@ -270,13 +270,26 @@ async function expandBatchUrls(input: string): Promise<PlaylistEntry[]> {
   return entries;
 }
 
-async function retry<T>(fn: () => Promise<T>, attempts: number): Promise<T> {
+async function retry<T>(fn: () => Promise<T>, attempts: number, log: ProgressLogger = noopLogger): Promise<T> {
   let lastError: Error | null = null;
   for (let attempt = 1; attempt <= attempts; attempt += 1) {
     try {
       return await fn();
     } catch (error) {
       lastError = error as Error;
+      if (attempt < attempts) {
+        // A rate-limit/bot-check from YouTube won't clear in a couple of
+        // seconds, so back off much longer for those than for an ordinary
+        // failure (a flaky network blip, Whisper hiccup, etc).
+        const blocked = isYtDlpBlocked(lastError.message);
+        const backoffMs = (blocked ? 30_000 : 3_000) * attempt;
+        log(
+          blocked
+            ? `Attempt ${attempt} looked like a YouTube rate-limit/bot-check; backing off ${Math.round(backoffMs / 1000)}s before retrying`
+            : `Attempt ${attempt} failed (${lastError.message}); retrying in ${Math.round(backoffMs / 1000)}s`,
+        );
+        await sleep(backoffMs);
+      }
     }
   }
 
@@ -305,7 +318,7 @@ export async function ingestBatch(input: string, log: ProgressLogger = noopLogge
     const initial = await classifyVideo(entry.url);
     try {
       log(`[${index + 1}/${entries.length}] ${entry.id}: starting`);
-      const result = await retry(() => ingestVideo(entry.url, log), 2);
+      const result = await retry(() => ingestVideo(entry.url, log), 2, log);
       results.push({
         url: entry.url,
         id: entry.id,

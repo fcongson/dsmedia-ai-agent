@@ -1,7 +1,7 @@
 import path from "node:path";
 import { execa } from "execa";
 import fs from "fs-extra";
-import { getDataDirs, type IngestContext, resolveExecutable } from "./runtime.js";
+import { getDataDirs, type IngestContext, resolveExecutable, runYtDlp } from "./runtime.js";
 
 function stripMarkup(line: string): string {
   return line
@@ -100,13 +100,11 @@ export async function tryDownloadSubtitles(context: IngestContext): Promise<stri
   const { TRANSCRIPTS_DIR } = getDataDirs();
   await fs.ensureDir(TRANSCRIPTS_DIR);
   await fs.remove(context.transcriptPath);
-  const ytDlp = await resolveExecutable("yt-dlp");
 
   const existingFiles = await listSubtitleFiles(context);
   await Promise.all(existingFiles.map((file) => fs.remove(file)));
 
-  const result = await execa(
-    ytDlp,
+  const result = await runYtDlp(
     [
       "--skip-download",
       "--write-sub",
@@ -115,8 +113,8 @@ export async function tryDownloadSubtitles(context: IngestContext): Promise<stri
       "en.*,en",
       "-o",
       `${context.subtitleStem}.%(ext)s`,
-      context.sourceUrl,
     ],
+    context.sourceUrl,
     { reject: false },
   );
 

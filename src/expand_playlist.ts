@@ -1,5 +1,4 @@
-import { execa } from "execa";
-import { resolveExecutable } from "./runtime.js";
+import { runYtDlp } from "./runtime.js";
 
 export interface PlaylistEntry {
   id: string;
@@ -8,16 +7,9 @@ export interface PlaylistEntry {
 }
 
 export async function expandPlaylist(url: string): Promise<PlaylistEntry[]> {
-  const ytDlp = await resolveExecutable("yt-dlp");
-
   // --flat-playlist skips downloading anything — just dumps the playlist metadata
   // --print outputs one value per line for each entry
-  const result = await execa(ytDlp, [
-    "--flat-playlist",
-    "--print",
-    "%(id)s\t%(title)s",
-    url,
-  ]);
+  const result = await runYtDlp(["--flat-playlist", "--print", "%(id)s\t%(title)s"], url);
 
   const entries: PlaylistEntry[] = [];
 

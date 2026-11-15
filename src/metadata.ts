@@ -1,6 +1,5 @@
-import { execa } from "execa";
 import fs from "fs-extra";
-import { getDataDirs, type IngestContext, resolveExecutable } from "./runtime.js";
+import { getDataDirs, type IngestContext, runYtDlp } from "./runtime.js";
 
 export interface VideoChapter {
   title: string;
@@ -146,13 +145,8 @@ export async function readCachedMetadata(context: IngestContext): Promise<VideoM
 export async function fetchMetadata(context: IngestContext): Promise<VideoMetadata> {
   const { METADATA_DIR } = getDataDirs();
   await fs.ensureDir(METADATA_DIR);
-  const ytDlp = await resolveExecutable("yt-dlp");
 
-  const result = await execa(
-    ytDlp,
-    ["--dump-single-json", "--no-download", context.sourceUrl],
-    { reject: false },
-  );
+  const result = await runYtDlp(["--dump-single-json", "--no-download"], context.sourceUrl, { reject: false });
 
   if (result.exitCode !== 0 || !result.stdout.trim()) {
     throw new Error(result.stderr || result.stdout || "Video metadata fetch failed.");
