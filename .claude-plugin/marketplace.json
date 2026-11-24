@@ -1,0 +1,13 @@
+{
+  "name": "dsmedia-ai-agent",
+  "owner": {
+    "name": "Frank Congson"
+  },
+  "plugins": [
+    {
+      "name": "dsmedia",
+      "source": "./",
+      "description": "Skills for maintaining designsystems.media: video ingest, taxonomy tagging, bulk retagging, speaker curation, and content search."
+    }
+  ]
+}

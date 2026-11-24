@@ -30,6 +30,10 @@ The pipeline uses a subtitle-first transcript strategy and writes stable artifac
 | `transcribe_audio` | Transcribes audio using Whisper |
 | `analyse_transcript` | Sends a transcript to Ollama and writes structured JSON analysis |
 
+## Where to run
+
+The `npm run` commands in this skill work only from the `dsmedia-ai-agent` checkout, because the scripts are defined in its `package.json`. If the session is in another repo (for example `designsystems.media`), run them from the `dsmedia-ai-agent` directory and point at the site with `--site-path <path>` or `DSMEDIA_SITE_DIR` where the command needs it. MCP tools work from any session where the `dsmedia-ai-agent` MCP server is connected.
+
 ## Canonical CLI Command
 
 ```sh

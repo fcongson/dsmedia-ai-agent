@@ -9,6 +9,10 @@ Finds entries in the site's `media` (or `podcast`) collection that are missing `
 
 This is a long batch job. It is available on the command line only, not as an MCP tool.
 
+## Where to run
+
+This is a CLI-only command, so run `npm run retag_site_media` from the `dsmedia-ai-agent` checkout, not from the site repo. Pass the site location with `--site-path <path>` or set `DSMEDIA_SITE_DIR` if the site is not a sibling directory. Run the review and verification steps (`git status`, `git diff`, `npm run validate:content`) in the site repo.
+
 ## Requirements
 
 `yt-dlp`, `whisper`, and Ollama running with the configured model. See the Requirements section of the README.

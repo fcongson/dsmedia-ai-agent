@@ -334,6 +334,19 @@ This repo is also a Claude Code plugin (`.claude-plugin/plugin.json`, name `dsme
 
 `formats/video-summary.md` is the vault note template.
 
+### Install the plugin
+
+The plugin does not bundle the MCP server. Its skills expect the `dsmedia-ai-agent` MCP server to be connected already (see the MCP section above), so tools do not appear twice. The CLI-only commands (`ingest_video`, `ingest_batch`, `retag_site_media`) run from this checkout with `npm run`.
+
+In Claude Code:
+
+```sh
+/plugin marketplace add fcongson/dsmedia-ai-agent
+/plugin install dsmedia@dsmedia-ai-agent
+```
+
+To try it from a local checkout without installing: `claude --plugin-dir /path/to/dsmedia-ai-agent`.
+
 `npm run validate` checks that every manifest has a matching `skills/<id>/SKILL.md` with the same `name`, and that every MCP tool and CLI command is covered by at least one manifest. Adding a tool without updating the skills fails validation.
 
 Portability is handled in layers:
