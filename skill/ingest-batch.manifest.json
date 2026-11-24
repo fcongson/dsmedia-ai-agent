@@ -1,7 +1,7 @@
 {
-  "id": "dsmedia-ai-agent",
-  "name": "DS.media AI Agent",
-  "description": "Single-video YouTube ingest, transcript, and analysis guidance for MCP and CLI workflows.",
+  "id": "ingest-batch",
+  "name": "DS.media Ingest Batch",
+  "description": "Batch ingest guidance for playlists, channels, and URL lists using shared MCP and CLI operations.",
   "supportedTools": [
     "parse_video_id",
     "download_audio",
@@ -9,17 +9,19 @@
     "write_video_summary",
     "fetch_subtitles",
     "transcribe_audio",
-    "analyse_transcript"
+    "analyse_transcript",
+    "expand_playlist"
   ],
   "supportedCommands": [
-    "ingest_video",
+    "ingest_batch",
     "parse_video_id",
     "download_audio",
     "fetch_description",
     "write_video_summary",
     "fetch_subtitles",
     "transcribe_audio",
-    "analyse_transcript"
+    "analyse_transcript",
+    "expand_playlist"
   ],
   "artifacts": [
     "data/audio/<videoId>.mp3",
@@ -27,7 +29,6 @@
     "data/metadata/<videoId>.json",
     "data/notes/<videoId>.md",
     "data/transcripts/<videoId>.txt",
-    "data/transcripts/<videoId>*.vtt",
     "data/analysis/<videoId>.json"
   ],
   "defaults": {

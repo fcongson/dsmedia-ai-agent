@@ -1,15 +1,15 @@
 ---
-name: dsmedia-ai-agent
-description: "Use this skill when asked to analyse, summarise, transcribe, or ingest a single YouTube video. The canonical runtime surfaces are the MCP tools in this repo and the `ingest_video` CLI command."
+name: ingest-video
+description: "Use when asked to analyse, summarise, transcribe, or ingest a single YouTube video. Runs the subtitle-first pipeline and writes artifacts keyed by video ID."
 ---
 
-# DS.media AI Agent Skill
+# Ingest a single video
 
 ## Overview
 
-This skill covers the single-video pipeline for the `dsmedia-ai-agent` project. The source of truth for supported tools and commands lives in `skill/dsmedia-ai-agent.manifest.json`.
+This skill covers the single-video pipeline for the `dsmedia-ai-agent` project. The source of truth for supported tools and commands lives in `skill/ingest-video.manifest.json`.
 
-There are three ways to drive the same pipeline:
+There are four ways to drive the same pipeline:
 
 - MCP tools for Claude Desktop and other MCP clients
 - `ingest_video` from the command line
@@ -93,7 +93,7 @@ Useful environment variables:
 This markdown file is human-oriented guidance. Portability across tools comes from two layers:
 
 - MCP for executable cross-tool integration
-- `skill/dsmedia-ai-agent.manifest.json` for machine-readable skill metadata
+- `skill/ingest-video.manifest.json` for machine-readable skill metadata
 
 That means Claude and other AI tools can share the same underlying workflow even if each tool needs a different prompt wrapper.
 

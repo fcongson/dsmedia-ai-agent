@@ -1,0 +1,22 @@
+{
+  "id": "retag-site-media",
+  "name": "DS.media Retag Site Media",
+  "description": "Bulk-classify untagged site entries and write results to frontmatter. Dry run by default.",
+  "supportedTools": [],
+  "supportedCommands": [
+    "retag_site_media"
+  ],
+  "artifacts": [
+    "data/retag-reports/<kind>-<timestamp>.json"
+  ],
+  "defaults": {
+    "llmProfile": "balanced",
+    "transcriptStrategy": "subtitle-first with Whisper fallback"
+  },
+  "portabilityTargets": [
+    "claude-desktop",
+    "codex",
+    "open-webui",
+    "generic-mcp-client"
+  ]
+}

@@ -1,0 +1,10 @@
+{
+  "name": "dsmedia",
+  "version": "0.1.0",
+  "description": "Skills for maintaining designsystems.media: video ingest, taxonomy tagging, bulk retagging, speaker curation, and content search.",
+  "author": {
+    "name": "Frank Congson"
+  },
+  "license": "MIT",
+  "keywords": ["designsystems.media", "taxonomy", "youtube", "ingest"]
+}

@@ -1,0 +1,24 @@
+{
+  "id": "tag-media-entry",
+  "name": "DS.media Tag Media Entry",
+  "description": "Read-only taxonomy classification of one video against the site's closed lists.",
+  "supportedTools": [
+    "classify_taxonomy"
+  ],
+  "supportedCommands": [
+    "classify_taxonomy"
+  ],
+  "artifacts": [
+    "data/analysis/<videoId>.json"
+  ],
+  "defaults": {
+    "llmProfile": "balanced",
+    "transcriptStrategy": "subtitle-first with Whisper fallback"
+  },
+  "portabilityTargets": [
+    "claude-desktop",
+    "codex",
+    "open-webui",
+    "generic-mcp-client"
+  ]
+}

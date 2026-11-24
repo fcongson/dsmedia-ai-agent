@@ -1,0 +1,18 @@
+{
+  "id": "add-speaker",
+  "name": "DS.media Add Speaker",
+  "description": "Add or correct a name in the site's controlled speakers list.",
+  "supportedTools": [],
+  "supportedCommands": [],
+  "artifacts": [],
+  "defaults": {
+    "llmProfile": "balanced",
+    "transcriptStrategy": "subtitle-first with Whisper fallback"
+  },
+  "portabilityTargets": [
+    "claude-desktop",
+    "codex",
+    "open-webui",
+    "generic-mcp-client"
+  ]
+}

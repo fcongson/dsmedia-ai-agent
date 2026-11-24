@@ -1,0 +1,24 @@
+{
+  "id": "find-content",
+  "name": "DS.media Find Content",
+  "description": "Semantic search over analysed videos and site frontmatter.",
+  "supportedTools": [
+    "find_content"
+  ],
+  "supportedCommands": [
+    "find_content"
+  ],
+  "artifacts": [
+    "data/embeddings/<videoId>.json"
+  ],
+  "defaults": {
+    "llmProfile": "balanced",
+    "transcriptStrategy": "subtitle-first with Whisper fallback"
+  },
+  "portabilityTargets": [
+    "claude-desktop",
+    "codex",
+    "open-webui",
+    "generic-mcp-client"
+  ]
+}

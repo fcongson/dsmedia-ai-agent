@@ -1,13 +1,13 @@
 ---
-name: dsmedia-batch-ingest
-description: "Use this skill when asked to ingest, analyse, or process multiple YouTube videos at once. The canonical runtime surfaces are the shared MCP tools plus the `ingest_batch` CLI command."
+name: ingest-batch
+description: "Use when asked to ingest, analyse, or process several YouTube videos at once: a playlist, a channel, a list of URLs, or a text file of URLs."
 ---
 
-# DS.media Batch Ingest Skill
+# Ingest a batch of videos
 
 ## Overview
 
-This skill extends the single-video pipeline to playlists, channels, individual URLs, or a plain text file of URLs. The source of truth for supported tools and commands lives in `skill/dsmedia-batch-ingest.manifest.json`.
+This skill extends the single-video pipeline to playlists, channels, individual URLs, or a plain text file of URLs. The source of truth for supported tools and commands lives in `skill/ingest-batch.manifest.json`.
 
 The batch flow uses the same artifact model, model configuration, and subtitle-first transcript strategy as the single-video flow.
 The shared step commands are also available on CLI with the same names as the MCP tools for troubleshooting individual stages.
@@ -81,7 +81,7 @@ Override with `dsmedia.config.json` or the `DSMEDIA_LLM_*` environment variables
 Portability is split across:
 
 - MCP tools for executable cross-client behavior
-- `skill/dsmedia-batch-ingest.manifest.json` for machine-readable metadata
+- `skill/ingest-batch.manifest.json` for machine-readable metadata
 - this markdown file for human-readable guidance
 
 That lets Claude and other AI tools share the same runtime workflow without forcing the same prompt format everywhere.

@@ -321,21 +321,26 @@ Then point Open WebUI at `http://localhost:8000`.
 
 ## Skills
 
-The `skill/` directory now contains both human-readable guidance and machine-readable manifests:
+This repo is also a Claude Code plugin (`.claude-plugin/plugin.json`, name `dsmedia`). Each skill is a folder under `skills/` with a `SKILL.md`, and has a machine-readable manifest in `skill/<name>.manifest.json`.
 
-- `skill/SKILL.md`
-- `skill/SKILL-batch-ingest.md`
-- `skill/dsmedia-ai-agent.manifest.json`
-- `skill/dsmedia-batch-ingest.manifest.json`
-- `formats/video-summary.md`
+| Skill | Use it to |
+|---|---|
+| `ingest-video` | Ingest, transcribe, and analyse one YouTube video |
+| `ingest-batch` | Ingest a playlist, a channel, or a list of URLs |
+| `tag-media-entry` | Preview how one video would be tagged (read-only) |
+| `retag-site-media` | Bulk-tag untagged site entries: dry run, review, then `--apply` |
+| `find-content` | Find videos by meaning and get a short recommendation |
+| `add-speaker` | Add a name to the site's controlled speakers list |
+
+`formats/video-summary.md` is the vault note template.
+
+`npm run validate` checks that every manifest has a matching `skills/<id>/SKILL.md` with the same `name`, and that every MCP tool and CLI command is covered by at least one manifest. Adding a tool without updating the skills fails validation.
 
 Portability is handled in layers:
 
 - MCP makes the executable tool interface portable across Claude and other MCP-aware clients.
 - Skill manifests make the workflow metadata portable across different AI tool ecosystems.
 - Markdown skill files remain the human-facing guidance layer.
-
-This means Claude and other AI tools can share the same runtime workflow even if each tool wraps the guidance differently.
 
 ## Output Schema
 

@@ -1,7 +1,7 @@
 {
-  "id": "dsmedia-batch-ingest",
-  "name": "DS.media Batch Ingest",
-  "description": "Batch ingest guidance for playlists, channels, and URL lists using shared MCP and CLI operations.",
+  "id": "ingest-video",
+  "name": "DS.media Ingest Video",
+  "description": "Single-video YouTube ingest, transcript, and analysis guidance for MCP and CLI workflows.",
   "supportedTools": [
     "parse_video_id",
     "download_audio",
@@ -9,19 +9,17 @@
     "write_video_summary",
     "fetch_subtitles",
     "transcribe_audio",
-    "analyse_transcript",
-    "expand_playlist"
+    "analyse_transcript"
   ],
   "supportedCommands": [
-    "ingest_batch",
+    "ingest_video",
     "parse_video_id",
     "download_audio",
     "fetch_description",
     "write_video_summary",
     "fetch_subtitles",
     "transcribe_audio",
-    "analyse_transcript",
-    "expand_playlist"
+    "analyse_transcript"
   ],
   "artifacts": [
     "data/audio/<videoId>.mp3",
@@ -29,6 +27,7 @@
     "data/metadata/<videoId>.json",
     "data/notes/<videoId>.md",
     "data/transcripts/<videoId>.txt",
+    "data/transcripts/<videoId>*.vtt",
     "data/analysis/<videoId>.json"
   ],
   "defaults": {
